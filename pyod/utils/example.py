@@ -10,8 +10,8 @@ from __future__ import print_function
 
 import matplotlib.pyplot as plt
 
-from .data import check_consistent_shape
-from .data import get_outliers_inliers
+from pyod.utils.data import check_consistent_shape
+from pyod.utils.data import get_outliers_inliers
 
 
 def visualize(clf_name, X_train, y_train, X_test, y_test, y_train_pred,

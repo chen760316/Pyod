@@ -29,7 +29,7 @@ if __name__ == "__main__":
     X_train, X_test, y_train, y_test = \
         generate_data(n_train=n_train,
                       n_test=n_test,
-                      n_features=2,
+                      n_features=3,
                       contamination=contamination,
                       random_state=42)
 
@@ -56,5 +56,5 @@ if __name__ == "__main__":
     evaluate_print(clf_name, y_test, y_test_scores)
 
     # visualize the results
-    visualize(clf_name, X_train, y_train, X_test, y_test, y_train_pred,
-              y_test_pred, show_figure=True, save_figure=False)
+    # visualize(clf_name, X_train, y_train, X_test, y_test, y_train_pred,
+    #           y_test_pred, show_figure=True, save_figure=False)

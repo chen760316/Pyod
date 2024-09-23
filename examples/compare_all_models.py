@@ -186,7 +186,7 @@ for i, offset in enumerate(clusters_separation):
 						 cmap=plt.cm.Blues_r)
 		# a = subplot.contour(xx, yy, Z, levels=[threshold],
 		#                     linewidths=2, colors='red')
-		subplot.contourf(xx, yy, Z, levels=[threshold, Z.max()],
+		subplot.contourf(xx, yy, Z, levels=[min(threshold, Z.max()), max(threshold, Z.max())],
 						 colors='orange')
 		b = subplot.scatter(X[:-n_outliers, 0], X[:-n_outliers, 1], c='white',
 							s=20, edgecolor='k')

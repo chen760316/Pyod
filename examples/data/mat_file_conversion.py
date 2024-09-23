@@ -1,6 +1,8 @@
-'''Utility function for unifying mat files
-
 '''
+Utility function for unifying mat files
+'''
+from __future__ import division
+from __future__ import print_function
 import os
 import h5py
 import scipy as sp
@@ -70,8 +72,7 @@ sp.io.savemat('seismic.mat', seismic)
 
 # %%##########################################################################
 
-from __future__ import division
-from __future__ import print_function
+
 
 import os
 import sys
