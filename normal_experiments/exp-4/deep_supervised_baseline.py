@@ -9,16 +9,11 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
 import numpy as np
 import torch
-from deepod.models.tabular import GOAD
 from sklearn import svm
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.impute import KNNImputer
 from lime.lime_tabular import LimeTabularExplainer
-from deepod.models.tabular import DeepSVDD
-from deepod.models.tabular import RCA
-from deepod.models import REPEN, SLAD, ICL, NeuTraL
-from deepod.models.tabular import DevNet
-from deepod.models import DeepSAD, RoSAS, PReNet
+from pyod.models.xgbod import XGBOD
 import re
 
 pd.set_option('display.max_columns', None)
@@ -146,17 +141,9 @@ y_semi_test[test_positive_indices] = 1
 # out_clf_noise.fit(X_train_copy, y_semi)
 
 # choice PReNeT异常检测器
-out_clf = PReNet(epochs=epochs,
-                  epoch_steps=epoch_steps,
-                  device=device,
-                  batch_size=batch_size,
-                  lr=lr)
+out_clf = XGBOD()
 out_clf.fit(X_train, y_semi)
-out_clf_noise = PReNet(epochs=epochs,
-                  epoch_steps=epoch_steps,
-                  device=device,
-                  batch_size=batch_size,
-                  lr=lr)
+out_clf_noise = XGBOD()
 out_clf_noise.fit(X_train_copy, y_semi)
 
 # SECTION 借助异常检测器，在训练集上进行异常值检测。
@@ -166,7 +153,7 @@ out_clf_noise.fit(X_train_copy, y_semi)
 
 print("*"*100)
 train_scores = out_clf.decision_function(X_train)
-train_pred_labels, train_confidence = out_clf.predict(X_train, return_confidence=True)
+train_pred_labels = out_clf.predict(X_train)
 print("训练集中异常值判定阈值为：", out_clf.threshold_)
 train_outliers_index = []
 print("训练集样本数：", len(X_train))
@@ -187,7 +174,7 @@ print("训练集中检测到的异常值比例：", len(train_outliers_index)/le
 
 print("*"*100)
 test_scores = out_clf.decision_function(X_test)
-test_pred_labels, test_confidence = out_clf.predict(X_test, return_confidence=True)
+test_pred_labels = out_clf.predict(X_test)
 print("测试集中异常值判定阈值为：", out_clf.threshold_)
 test_outliers_index = []
 print("测试集样本数：", len(X_test))
@@ -210,8 +197,8 @@ print("测试集中的异常值比例：", len(test_outliers_index)/len(X_test))
 
 print("*"*100)
 train_scores_noise = out_clf_noise.decision_function(X_train_copy)
-train_pred_labels_noise, train_confidence_noise = out_clf_noise.predict(X_train_copy, return_confidence=True)
-print("加噪训练集中异常值判定阈值为：", out_clf_noise.threshold_)
+train_pred_labels_noise = out_clf_noise.predict(X_train_copy)
+# print("加噪训练集中异常值判定阈值为：", out_clf_noise.threshold_)
 train_outliers_index_noise = []
 print("加噪训练集样本数：", len(X_train_copy))
 for i in range(len(X_train_copy)):
@@ -231,8 +218,8 @@ print("加噪训练集中的异常值比例：", len(train_outliers_index_noise)
 
 print("*"*100)
 test_scores_noise = out_clf_noise.decision_function(X_test_copy)
-test_pred_labels_noise, test_confidence_noise = out_clf_noise.predict(X_test_copy, return_confidence=True)
-print("加噪测试集中异常值判定阈值为：", out_clf_noise.threshold_)
+test_pred_labels_noise = out_clf_noise.predict(X_test_copy)
+# print("加噪测试集中异常值判定阈值为：", out_clf_noise.threshold_)
 test_outliers_index_noise = []
 print("加噪测试集样本数：", len(X_test_copy))
 for i in range(len(X_test_copy)):
