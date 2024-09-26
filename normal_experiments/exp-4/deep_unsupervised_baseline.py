@@ -7,15 +7,20 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
 import numpy as np
 import torch
-from deepod.models.tabular import GOAD
 from sklearn import svm
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.impute import KNNImputer
 from lime.lime_tabular import LimeTabularExplainer
-from deepod.models.tabular import DeepSVDD
-from deepod.models.tabular import RCA
-from deepod.models import REPEN, SLAD, ICL, NeuTraL
 import re
+from pyod.models.abod import ABOD
+from pyod.models.cof import COF
+from pyod.models.copod import COPOD
+from pyod.models.iforest import IForest
+from pyod.models.ecod import ECOD
+from pyod.models.loda import LODA
+from pyod.models.lof import LOF
+from pyod.models.ocsvm import OCSVM
+from pyod.models.sod import SOD
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
@@ -95,46 +100,58 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 n_trans = 64
 random_state = 42
 
-# choice GOAD异常检测器
-# out_clf = GOAD(epochs=epochs, device=device, n_trans=n_trans)
-# out_clf.fit(X_train, y=None)
-# out_clf_noise = GOAD(epochs=epochs, device=device, n_trans=n_trans)
-# out_clf_noise.fit(X_train_copy, y=None)
-
-# choice DeepSVDD异常检测器
-# out_clf = DeepSVDD(epochs=epochs, device=device, random_state=random_state)
-# out_clf.fit(X_train, y=None)
-# out_clf_noise = DeepSVDD(epochs=epochs, device=device, random_state=random_state)
-# out_clf_noise.fit(X_train_copy, y=None)
-
-# choice RCA异常检测器
-out_clf = RCA(epochs=epochs, device=device, act='LeakyReLU')
+# choice ABOD异常检测器
+out_clf = ABOD()
 out_clf.fit(X_train)
-out_clf_noise = RCA(epochs=epochs, device=device, act='LeakyReLU')
+out_clf_noise = ABOD()
 out_clf_noise.fit(X_train_copy)
 
-# choice RePEN异常检测器
-# out_clf = REPEN(epochs=5, device=device)
+# # choice COF异常检测器
+# out_clf = COF()
 # out_clf.fit(X_train)
-# out_clf_noise = REPEN(epochs=5, device=device)
+# out_clf_noise = COF()
 # out_clf_noise.fit(X_train_copy)
-
-# choice SLAD异常检测器
-# out_clf = SLAD(epochs=2, device=device)
+#
+# # choice COPOD异常检测器
+# out_clf = COPOD()
 # out_clf.fit(X_train)
-# out_clf_noise = SLAD(epochs=2, device=device)
+# out_clf_noise = COPOD()
 # out_clf_noise.fit(X_train_copy)
-
-# choice ICL异常检测器
-# out_clf = ICL(epochs=1, device=device, n_ensemble='auto')
+#
+# # choice ECOD异常检测器
+# out_clf = ECOD()
 # out_clf.fit(X_train)
-# out_clf_noise = ICL(epochs=1, device=device, n_ensemble='auto')
+# out_clf_noise = ECOD()
 # out_clf_noise.fit(X_train_copy)
-
-# choice NeuTraL异常检测器
-# out_clf = NeuTraL(epochs=1, device=device)
+#
+# # choice IForest异常检测器
+# out_clf = IForest()
 # out_clf.fit(X_train)
-# out_clf_noise = NeuTraL(epochs=1, device=device)
+# out_clf_noise = IForest()
+# out_clf_noise.fit(X_train_copy)
+#
+# # choice LODA异常检测器
+# out_clf = LODA()
+# out_clf.fit(X_train)
+# out_clf_noise = LODA()
+# out_clf_noise.fit(X_train_copy)
+#
+# # choice LOF异常检测器
+# out_clf = LOF()
+# out_clf.fit(X_train)
+# out_clf_noise = LOF()
+# out_clf_noise.fit(X_train_copy)
+#
+# # choice OCSVM异常检测器
+# out_clf = OCSVM()
+# out_clf.fit(X_train)
+# out_clf_noise = OCSVM()
+# out_clf_noise.fit(X_train_copy)
+#
+# # choice SOD异常检测器
+# out_clf = SOD()
+# out_clf.fit(X_train)
+# out_clf_noise = SOD()
 # out_clf_noise.fit(X_train_copy)
 
 # SECTION 借助异常检测器，在训练集上进行异常值检测。

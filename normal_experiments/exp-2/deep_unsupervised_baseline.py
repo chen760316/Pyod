@@ -7,18 +7,24 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
 import numpy as np
 import torch
-from deepod.models.tabular import GOAD
 from sklearn import svm
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.impute import KNNImputer
 from lime.lime_tabular import LimeTabularExplainer
-from deepod.models.tabular import DeepSVDD
-from deepod.models.tabular import RCA
-from deepod.models import REPEN, SLAD, ICL, NeuTraL
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.metrics import precision_recall_curve, auc
 from sklearn.metrics import average_precision_score
+from pyod.models.abod import ABOD
+from pyod.models.cof import COF
+from pyod.models.copod import COPOD
+from pyod.models.iforest import IForest
+from pyod.models.ecod import ECOD
+from pyod.models.loda import LODA
+from pyod.models.lof import LOF
+from pyod.models.ocsvm import OCSVM
+from pyod.models.sod import SOD
+
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
@@ -107,9 +113,9 @@ n_trans = 64
 random_state = 42
 
 # choice GOAD异常检测器
-out_clf = GOAD(epochs=epochs, device=device, n_trans=n_trans)
+out_clf = ABOD()
 out_clf.fit(X_train, y=None)
-out_clf_noise = GOAD(epochs=epochs, device=device, n_trans=n_trans)
+out_clf_noise = ABOD()
 out_clf_noise.fit(X_train_copy, y=None)
 
 # choice DeepSVDD异常检测器

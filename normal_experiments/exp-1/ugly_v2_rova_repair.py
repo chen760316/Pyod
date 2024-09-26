@@ -4,18 +4,26 @@
 """
 
 import pandas as pd
+from sklearn.feature_selection import SelectFromModel
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
 import numpy as np
 import torch
-from deepod.models.tabular import GOAD
 from sklearn import svm
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.impute import KNNImputer
 from lime.lime_tabular import LimeTabularExplainer
-from deepod.models.tabular import PReNet
 from sklearn.preprocessing import MinMaxScaler
+from pyod.models.abod import ABOD
+from pyod.models.cof import COF
+from pyod.models.copod import COPOD
+from pyod.models.iforest import IForest
+from pyod.models.ecod import ECOD
+from pyod.models.loda import LODA
+from pyod.models.lof import LOF
+from pyod.models.ocsvm import OCSVM
+from pyod.models.sod import SOD
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
@@ -115,10 +123,10 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 n_trans = 64
 random_state = 42
 
-out_clf = PReNet(epochs=epochs, device=device, random_state=random_state)
+out_clf = ABOD()
 out_clf.fit(X_train, y=y_semi)
 
-out_clf_noise = PReNet(epochs=epochs, device=device, random_state=random_state)
+out_clf_noise = ABOD()
 out_clf_noise.fit(X_train_copy, y_semi)
 
 # SECTION 借助异常检测器，在训练集上进行异常值检测

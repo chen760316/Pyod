@@ -1,20 +1,28 @@
 """
 无监督离群值检测算法修复效果测试
 """
+import re
+
 import pandas as pd
+from sklearn.feature_selection import SelectFromModel
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
 import numpy as np
 import torch
-from deepod.models.tabular import GOAD
 from sklearn import svm
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.impute import KNNImputer
 from lime.lime_tabular import LimeTabularExplainer
-from deepod.models.tabular import DeepSVDD
-from deepod.models.tabular import RCA
-from deepod.models import REPEN, SLAD, ICL, NeuTraL
+from pyod.models.abod import ABOD
+from pyod.models.cof import COF
+from pyod.models.copod import COPOD
+from pyod.models.iforest import IForest
+from pyod.models.ecod import ECOD
+from pyod.models.loda import LODA
+from pyod.models.lof import LOF
+from pyod.models.ocsvm import OCSVM
+from pyod.models.sod import SOD
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
@@ -94,46 +102,58 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 n_trans = 64
 random_state = 42
 
-# choice GOAD异常检测器
-# out_clf = GOAD(epochs=epochs, device=device, n_trans=n_trans)
-# out_clf.fit(X_train, y=None)
-# out_clf_noise = GOAD(epochs=epochs, device=device, n_trans=n_trans)
-# out_clf_noise.fit(X_train_copy, y=None)
-
-# choice DeepSVDD异常检测器
-# out_clf = DeepSVDD(epochs=epochs, device=device, random_state=random_state)
-# out_clf.fit(X_train, y=None)
-# out_clf_noise = DeepSVDD(epochs=epochs, device=device, random_state=random_state)
-# out_clf_noise.fit(X_train_copy, y=None)
-
-# choice RCA异常检测器
-out_clf = RCA(epochs=epochs, device=device, act='LeakyReLU')
+# choice ABOD异常检测器
+out_clf = ABOD()
 out_clf.fit(X_train)
-out_clf_noise = RCA(epochs=epochs, device=device, act='LeakyReLU')
+out_clf_noise = ABOD()
 out_clf_noise.fit(X_train_copy)
 
-# choice RePEN异常检测器
-# out_clf = REPEN(epochs=5, device=device)
+# # choice COF异常检测器
+# out_clf = COF()
 # out_clf.fit(X_train)
-# out_clf_noise = REPEN(epochs=5, device=device)
+# out_clf_noise = COF()
 # out_clf_noise.fit(X_train_copy)
-
-# choice SLAD异常检测器
-# out_clf = SLAD(epochs=2, device=device)
+#
+# # choice COPOD异常检测器
+# out_clf = COPOD()
 # out_clf.fit(X_train)
-# out_clf_noise = SLAD(epochs=2, device=device)
+# out_clf_noise = COPOD()
 # out_clf_noise.fit(X_train_copy)
-
-# choice ICL异常检测器
-# out_clf = ICL(epochs=1, device=device, n_ensemble='auto')
+#
+# # choice ECOD异常检测器
+# out_clf = ECOD()
 # out_clf.fit(X_train)
-# out_clf_noise = ICL(epochs=1, device=device, n_ensemble='auto')
+# out_clf_noise = ECOD()
 # out_clf_noise.fit(X_train_copy)
-
-# choice NeuTraL异常检测器
-# out_clf = NeuTraL(epochs=1, device=device)
+#
+# # choice IForest异常检测器
+# out_clf = IForest()
 # out_clf.fit(X_train)
-# out_clf_noise = NeuTraL(epochs=1, device=device)
+# out_clf_noise = IForest()
+# out_clf_noise.fit(X_train_copy)
+#
+# # choice LODA异常检测器
+# out_clf = LODA()
+# out_clf.fit(X_train)
+# out_clf_noise = LODA()
+# out_clf_noise.fit(X_train_copy)
+#
+# # choice LOF异常检测器
+# out_clf = LOF()
+# out_clf.fit(X_train)
+# out_clf_noise = LOF()
+# out_clf_noise.fit(X_train_copy)
+#
+# # choice OCSVM异常检测器
+# out_clf = OCSVM()
+# out_clf.fit(X_train)
+# out_clf_noise = OCSVM()
+# out_clf_noise.fit(X_train_copy)
+#
+# # choice SOD异常检测器
+# out_clf = SOD()
+# out_clf.fit(X_train)
+# out_clf_noise = SOD()
 # out_clf_noise.fit(X_train_copy)
 
 # SECTION 借助异常检测器，在训练集上进行异常值检测。
@@ -299,17 +319,11 @@ explainer = LimeTabularExplainer(X_train, feature_names=feature_names, class_nam
                                                    categorical_names=categorical_names, kernel_width=3)
 # predict_proba 方法用于分类任务，predict 方法用于回归任务
 predict_fn = lambda x: svm_model.predict_proba(x)
-exp = explainer.explain_instance(X_train[i], predict_fn, num_features=6)
+exp = explainer.explain_instance(X_train[i], predict_fn, num_features=len(feature_names)//2)
 # 获取最具影响力的特征及其权重
 top_features = exp.as_list()
-important_features = []
-for feature_set in top_features:
-    feature_long = feature_set[0]
-    for feature in feature_names:
-        if set(feature).issubset(set(feature_long)):
-            important_features.append(feature)
-            break
-top_k_indices = [feature_names.index(feature_name) for feature_name in important_features]
+top_feature_names = [re.search(r'([a-zA-Z_]\w*)', feature[0]).group(0).strip() for feature in top_features]
+top_k_indices = [feature_names.index(name) for name in top_feature_names]
 print("LIME检验的最有影响力的属性的索引：{}".format(top_k_indices))
 
 # section 方案一：对X_copy中需要修复的元组进行标签修复（knn方法）

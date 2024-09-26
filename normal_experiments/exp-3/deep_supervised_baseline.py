@@ -9,22 +9,17 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
 import numpy as np
 import torch
-from deepod.models.tabular import GOAD
 from sklearn import svm
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.impute import KNNImputer
 from lime.lime_tabular import LimeTabularExplainer
-from deepod.models.tabular import DeepSVDD
-from deepod.models.tabular import RCA
-from deepod.models import REPEN, SLAD, ICL, NeuTraL
-from deepod.models.tabular import DevNet
-from deepod.models import DeepSAD, RoSAS, PReNet
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.metrics import precision_recall_curve, auc
 from sklearn.metrics import average_precision_score
 from sklearn.preprocessing import OneHotEncoder
 from scipy.special import softmax
+from pyod.models.xgbod import XGBOD
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
@@ -136,34 +131,10 @@ test_positive_indices = np.where(y_test == min_label)[0]
 y_semi_test[test_positive_indices] = 1
 
 # choice DevNet异常检测器
-out_clf = DevNet(epochs=epochs, hidden_dims=hidden_dims, device=device,
-                          random_state=random_state)
+out_clf = XGBOD()
 out_clf.fit(X_train, y_semi)
-out_clf_noise = DevNet(epochs=epochs, hidden_dims=hidden_dims, device=device,
-                          random_state=random_state)
+out_clf_noise = XGBOD()
 out_clf_noise.fit(X_train_copy, y_semi)
-
-# choice DeepSAD异常检测器
-# out_clf = DeepSAD(epochs=epochs, hidden_dims=hidden_dims,
-#                    device=device,
-#                    random_state=random_state)
-# out_clf.fit(X_train, y_semi)
-# out_clf_noise = DeepSAD(epochs=epochs, hidden_dims=hidden_dims,
-#                    device=device,
-#                    random_state=random_state)
-# out_clf_noise.fit(X_train_copy, y_semi)
-
-# choice RoSAS异常检测器
-# out_clf = RoSAS(epochs=epochs, hidden_dims=hidden_dims, device=device, random_state=random_state)
-# out_clf.fit(X_train, y_semi)
-# out_clf_noise = RoSAS(epochs=epochs, hidden_dims=hidden_dims, device=device, random_state=random_state)
-# out_clf_noise.fit(X_train_copy, y_semi)
-
-# choice PReNeT异常检测器
-# out_clf = PReNet(epochs=epochs, device=device, random_state=random_state)
-# out_clf.fit(X_train, y_semi)
-# out_clf_noise = PReNet(epochs=epochs, device=device, random_state=random_state)
-# out_clf_noise.fit(X_train_copy, y_semi)
 
 # SECTION 借助异常检测器，在训练集上进行异常值检测。
 #  经过检验，加入高斯噪声会影响异常值判别
@@ -172,8 +143,8 @@ out_clf_noise.fit(X_train_copy, y_semi)
 
 print("*"*100)
 train_scores = out_clf.decision_function(X_train)
-train_pred_labels, train_confidence = out_clf.predict(X_train, return_confidence=True)
-print("训练集中异常值判定阈值为：", out_clf.threshold_)
+train_pred_labels = out_clf.predict(X_train)
+# print("训练集中异常值判定阈值为：", out_clf.threshold_)
 train_outliers_index = []
 print("训练集样本数：", len(X_train))
 for i in range(len(X_train)):
@@ -187,8 +158,8 @@ print("训练集中的异常值比例：", len(train_outliers_index)/len(X_train
 # subsection 从原始测试集中检测出异常值索引
 
 test_scores = out_clf.decision_function(X_test)
-test_pred_labels, test_confidence = out_clf.predict(X_test, return_confidence=True)
-print("测试集中异常值判定阈值为：", out_clf.threshold_)
+test_pred_labels = out_clf.predict(X_test)
+# print("测试集中异常值判定阈值为：", out_clf.threshold_)
 test_outliers_index = []
 print("测试集样本数：", len(X_test))
 for i in range(len(X_test)):
@@ -207,7 +178,7 @@ print("半监督异常检测器在原始测试集中的分类准确度：" + str
 
 print("*"*100)
 scorese = out_clf.decision_function(X)
-pred_labels, confidence = out_clf.predict(X, return_confidence=True)
+pred_labels = out_clf.predict(X)
 outliers_index = []
 for i in range(len(X)):
     if pred_labels[i] == 1:
@@ -219,8 +190,8 @@ print("全部数据中的异常值数量：", len(outliers_index))
 # subsection 从加噪训练集中检测出异常值索引
 
 train_scores_noise = out_clf_noise.decision_function(X_train_copy)
-train_pred_labels_noise, train_confidence_noise = out_clf_noise.predict(X_train_copy, return_confidence=True)
-print("加噪训练集中异常值判定阈值为：", out_clf_noise.threshold_)
+train_pred_labels_noise = out_clf_noise.predict(X_train_copy)
+# print("加噪训练集中异常值判定阈值为：", out_clf_noise.threshold_)
 train_outliers_index_noise = []
 print("加噪训练集样本数：", len(X_train_copy))
 for i in range(len(X_train_copy)):
@@ -234,8 +205,8 @@ print("加噪训练集中的异常值比例：", len(train_outliers_index_noise)
 # subsection 从加噪测试集中检测出异常值索引
 
 test_scores_noise = out_clf_noise.decision_function(X_test_copy)
-test_pred_labels_noise, test_confidence_noise = out_clf_noise.predict(X_test_copy, return_confidence=True)
-print("加噪测试集中异常值判定阈值为：", out_clf_noise.threshold_)
+test_pred_labels_noise = out_clf_noise.predict(X_test_copy)
+# print("加噪测试集中异常值判定阈值为：", out_clf_noise.threshold_)
 test_outliers_index_noise = []
 print("加噪测试集样本数：", len(X_test_copy))
 for i in range(len(X_test_copy)):
@@ -250,7 +221,7 @@ print("加噪测试集中的异常值比例：", len(test_outliers_index_noise)/
 
 print("*"*100)
 scores_noise = out_clf_noise.decision_function(X_copy)
-pred_labels_noise, confidence_noise = out_clf_noise.predict(X_copy, return_confidence=True)
+pred_labels_noise = out_clf_noise.predict(X_copy)
 outliers_index_noise = []
 for i in range(len(X_copy)):
     if pred_labels_noise[i] == 1:
