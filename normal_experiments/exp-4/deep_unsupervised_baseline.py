@@ -12,6 +12,10 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.impute import KNNImputer
 from lime.lime_tabular import LimeTabularExplainer
 import re
+from sklearn.metrics import roc_auc_score
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from sklearn.metrics import precision_recall_curve, auc
+from sklearn.metrics import average_precision_score
 from pyod.models.abod import ABOD
 from pyod.models.cof import COF
 from pyod.models.copod import COPOD
@@ -35,9 +39,23 @@ np.set_printoptions(threshold=np.inf)
 # data = pd.read_csv(file_path)
 file_path = "../datasets/multi_class/drybean.xlsx"
 data = pd.read_excel(file_path)
+
 enc = LabelEncoder()
+label_name = data.columns[-1]
+
 # 原始数据集D对应的Dataframe
-data['Class'] = enc.fit_transform(data['Class'])
+data[label_name] = enc.fit_transform(data[label_name])
+
+# 检测非数值列
+non_numeric_columns = data.select_dtypes(exclude=[np.number]).columns
+
+# 为每个非数值列创建一个 LabelEncoder 实例
+encoders = {}
+for column in non_numeric_columns:
+    encoder = LabelEncoder()
+    data[column] = encoder.fit_transform(data[column])
+    encoders[column] = encoder  # 保存每个列的编码器，以便将来可能需要解码
+
 X = data.values[:, :-1]
 y = data.values[:, -1]
 
@@ -100,58 +118,46 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 n_trans = 64
 random_state = 42
 
-# choice ABOD异常检测器
+# choice GOAD异常检测器
+# out_clf = GOAD(epochs=epochs, device=device, n_trans=n_trans)
+# out_clf.fit(X_train, y=None)
+# out_clf_noise = GOAD(epochs=epochs, device=device, n_trans=n_trans)
+# out_clf_noise.fit(X_train_copy, y=None)
+
+# choice DeepSVDD异常检测器
+# out_clf = DeepSVDD(epochs=epochs, device=device, random_state=random_state)
+# out_clf.fit(X_train, y=None)
+# out_clf_noise = DeepSVDD(epochs=epochs, device=device, random_state=random_state)
+# out_clf_noise.fit(X_train_copy, y=None)
+
+# choice RCA异常检测器
 out_clf = ABOD()
 out_clf.fit(X_train)
 out_clf_noise = ABOD()
 out_clf_noise.fit(X_train_copy)
 
-# # choice COF异常检测器
-# out_clf = COF()
+# choice RePEN异常检测器
+# out_clf = REPEN(epochs=5, device=device)
 # out_clf.fit(X_train)
-# out_clf_noise = COF()
+# out_clf_noise = REPEN(epochs=5, device=device)
 # out_clf_noise.fit(X_train_copy)
-#
-# # choice COPOD异常检测器
-# out_clf = COPOD()
+
+# choice SLAD异常检测器
+# out_clf = SLAD(epochs=2, device=device)
 # out_clf.fit(X_train)
-# out_clf_noise = COPOD()
+# out_clf_noise = SLAD(epochs=2, device=device)
 # out_clf_noise.fit(X_train_copy)
-#
-# # choice ECOD异常检测器
-# out_clf = ECOD()
+
+# choice ICL异常检测器
+# out_clf = ICL(epochs=1, device=device, n_ensemble='auto')
 # out_clf.fit(X_train)
-# out_clf_noise = ECOD()
+# out_clf_noise = ICL(epochs=1, device=device, n_ensemble='auto')
 # out_clf_noise.fit(X_train_copy)
-#
-# # choice IForest异常检测器
-# out_clf = IForest()
+
+# choice NeuTraL异常检测器
+# out_clf = NeuTraL(epochs=1, device=device)
 # out_clf.fit(X_train)
-# out_clf_noise = IForest()
-# out_clf_noise.fit(X_train_copy)
-#
-# # choice LODA异常检测器
-# out_clf = LODA()
-# out_clf.fit(X_train)
-# out_clf_noise = LODA()
-# out_clf_noise.fit(X_train_copy)
-#
-# # choice LOF异常检测器
-# out_clf = LOF()
-# out_clf.fit(X_train)
-# out_clf_noise = LOF()
-# out_clf_noise.fit(X_train_copy)
-#
-# # choice OCSVM异常检测器
-# out_clf = OCSVM()
-# out_clf.fit(X_train)
-# out_clf_noise = OCSVM()
-# out_clf_noise.fit(X_train_copy)
-#
-# # choice SOD异常检测器
-# out_clf = SOD()
-# out_clf.fit(X_train)
-# out_clf_noise = SOD()
+# out_clf_noise = NeuTraL(epochs=1, device=device)
 # out_clf_noise.fit(X_train_copy)
 
 # SECTION 借助异常检测器，在训练集上进行异常值检测。
@@ -264,6 +270,53 @@ print("加噪测试样本中被SVM模型错误分类的样本占总测试样本�
 print("完整数据集D中被SVM模型错误分类的样本占总完整数据的比例：",
       (len(wrong_classified_train_indices_noise) + len(wrong_classified_test_indices_noise))/(len(y_train) + len(y_test)))
 
+# subsection 用多种指标评价加噪数据集中SVM的预测效果
+
+"""Precision/Recall/F1指标"""
+print("*" * 100)
+
+# average='micro': 全局计算 F1 分数，适用于处理类别不平衡的情况。
+# average='macro': 类别 F1 分数的简单平均，适用于需要均衡考虑每个类别的情况。
+# average='weighted': 加权 F1 分数，适用于类别不平衡的情况，考虑了每个类别的样本量。
+# average=None: 返回每个类别的 F1 分数，适用于详细分析每个类别的表现。
+y_test_pred = test_label_pred_noise
+print("SVM模型在加噪测试集中的分类精确度：" + str(precision_score(y_test, y_test_pred, average='weighted')))
+print("SVM模型在加噪测试集中的分类召回率：" + str(recall_score(y_test, y_test_pred, average='weighted')))
+print("SVM模型在加噪测试集中的分类F1分数：" + str(f1_score(y_test, y_test_pred, average='weighted')))
+
+"""ROC-AUC指标"""
+y_test_prob = svm_model_noise.predict_proba(X_test)
+roc_auc_test = roc_auc_score(y_test, y_test_prob, multi_class='ovr')  # 一对多方式
+print("SVM模型在加噪测试集中的ROC-AUC分数：" + str(roc_auc_test))
+
+"""PR AUC指标(不支持多分类)"""
+# # 计算预测概率
+# y_scores = svm_model_noise.predict_proba(X_test)
+# # 遍历每个类别
+# pr_scores = []
+# for i in range(y_scores.shape[1]):
+#     precision, recall, _ = precision_recall_curve(y_test, y_scores[:, i])
+#     pr_auc = auc(recall, precision)
+#     pr_scores.append(pr_auc)
+#     print(f"SVM模型在修复测试集中的PR AUC 分数（类 {i}）: {pr_auc}")
+# # 如果需要计算所有类的宏平均 PR 分数
+# macro_pr_score = sum(pr_scores) / len(pr_scores)
+# print("SVM模型在修复测试集中的宏平均AP分数:", macro_pr_score)
+
+"""AP指标(不支持多分类)"""
+# # 计算预测概率
+# y_scores = svm_model_noise.predict_proba(X_test)
+# # 计算每个类别的 Average Precision
+# ap_scores = []
+# for i in range(y_scores.shape[1]):
+#     ap_score = average_precision_score(y_test, y_scores[:, i])
+#     ap_scores.append(ap_score)
+#     print(f"SVM模型在修复测试集中的AP分数（类 {i}）: {ap_score}")
+#
+# # 如果需要计算所有类的宏平均 AP 分数
+# macro_ap_score = sum(ap_scores) / len(ap_scores)
+# print("SVM模型在修复测试集中的宏平均AP分数:", macro_ap_score)
+
 # section 识别X_copy中需要修复的元组
 
 # 异常检测器检测出的训练集和测试集中的异常值在原含噪数据D'中的索引
@@ -359,6 +412,41 @@ print("加噪标签修复后，测试样本中被SVM模型错误分类的样本�
 # 整体数据集D中被SVM模型错误分类的样本
 print("加噪标签修复后，完整数据集D中被SVM模型错误分类的样本占总完整数据的比例：",
       (len(wrong_classified_train_indices) + len(wrong_classified_test_indices))/(len(y_train) + len(y_test)))
+
+# subsection 用多种指标评价SVM在修复后的数据上的预测效果
+
+"""Precision/Recall/F1指标"""
+print("*" * 100)
+
+# average='micro': 全局计算 F1 分数，适用于处理类别不平衡的情况。
+# average='macro': 类别 F1 分数的简单平均，适用于需要均衡考虑每个类别的情况。
+# average='weighted': 加权 F1 分数，适用于类别不平衡的情况，考虑了每个类别的样本量。
+# average=None: 返回每个类别的 F1 分数，适用于详细分析每个类别的表现。
+
+print("SVM模型在修复测试集中的分类精确度：" + str(precision_score(y_test, y_test_pred, average='weighted')))
+print("SVM模型在修复测试集中的分类召回率：" + str(recall_score(y_test, y_test_pred, average='weighted')))
+print("SVM模型在修复测试集中的分类F1分数：" + str(f1_score(y_test, y_test_pred, average='weighted')))
+
+"""ROC-AUC指标"""
+y_test_prob = svm_repair.predict_proba(X_test)
+roc_auc_test = roc_auc_score(y_test, y_test_prob, multi_class='ovr')  # 一对多方式
+print("SVM模型在修复测试集中的ROC-AUC分数：" + str(roc_auc_test))
+
+"""PR AUC指标(不支持多分类)"""
+# # 计算预测概率
+# y_scores = svm_repair.predict_proba(X_test)
+# # 计算 Precision 和 Recall
+# precision, recall, _ = precision_recall_curve(y_test, y_scores)
+# # 计算 PR AUC
+# pr_auc = auc(recall, precision)
+# print("SVM模型在修复测试集中的PR AUC 分数:", pr_auc)
+#
+"""AP指标(不支持多分类)"""
+# # 计算预测概率
+# y_scores = svm_repair.predict_proba(X_test)
+# # 计算 Average Precision
+# ap_score = average_precision_score(y_test, y_scores)
+# print("SVM模型在修复测试集中的AP分数:", ap_score)
 
 # # section 方案二：对X_copy中需要修复的元组进行特征修复（统计方法修复）
 # #  需要修复的元组通过异常值检测器检测到的元组和SVM分类错误的元组共同确定（取并集）

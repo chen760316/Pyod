@@ -13,6 +13,10 @@ from sklearn import svm
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.impute import KNNImputer
 from lime.lime_tabular import LimeTabularExplainer
+from sklearn.metrics import roc_auc_score
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from sklearn.metrics import precision_recall_curve, auc
+from sklearn.metrics import average_precision_score
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
@@ -22,15 +26,38 @@ np.set_printoptions(threshold=np.inf)
 # section 标准数据集处理，输入原始多分类数据集，在中间处理过程转化为异常检测数据集
 
 # choice drybean数据集
-
-# file_path = "../datasets/multi_class_to_outlier/drybean_outlier.csv"
-# data = pd.read_csv(file_path)
 file_path = "../datasets/multi_class/drybean.xlsx"
 data = pd.read_excel(file_path)
+
+# choice obesity数据集
+# file_path = "../datasets/multi_class/obesity.csv"
+# data = pd.read_csv(file_path)
+
+# choice adult数据集
+# file_path = "../datasets/multi_class/adult.csv"
+# data = pd.read_csv(file_path)
+# if len(data) > 20000:
+#     data = data.sample(n=20000, random_state=42)
+
+# choice Iris数据集
+# file_path = "../datasets/multi_class/Iris.csv"
+# data = pd.read_csv(file_path)
+
 enc = LabelEncoder()
 label_name = data.columns[-1]
 # 原始数据集D对应的Dataframe
 data[label_name] = enc.fit_transform(data[label_name])
+
+# 检测非数值列
+non_numeric_columns = data.select_dtypes(exclude=[np.number]).columns
+
+# 为每个非数值列创建一个 LabelEncoder 实例
+encoders = {}
+for column in non_numeric_columns:
+    encoder = LabelEncoder()
+    data[column] = encoder.fit_transform(data[column])
+    encoders[column] = encoder  # 保存每个列的编码器，以便将来可能需要解码
+
 X = data.values[:, :-1]
 y = data.values[:, -1]
 
@@ -152,6 +179,10 @@ for i in range(num_samples):
 ugly_outlier_candidates = np.where(hinge_loss > 1)[0]
 # print("D中损失函数高于损失阈值的样本索引为：", ugly_outlier_candidates)
 
+# choice 判定分类错误的样本
+# y_pred = svm_model.predict(X_copy)
+# ugly_outlier_candidates = np.where(y_pred != y)
+
 # section 谓词outlier(𝐷, 𝑅, 𝑡 .𝐴, 𝜃 )的实现，找到所有有影响力的特征下的异常元组
 
 outlier_feature_indices = {}
@@ -198,6 +229,21 @@ svm_clf.fit(X_train, y_train)
 train_label_pred = svm_clf.predict(X_train)
 test_label_pred = svm_clf.predict(X_test)
 
+# 使用 np.unique 统计不同标签及其出现次数
+unique_labels, counts = np.unique(train_label_pred, return_counts=True)
+
+# 打印结果
+for label, count in zip(unique_labels, counts):
+    print(f"干净训练集Label: {label}, 预测Count: {count}")
+
+unique_labels, counts = np.unique(test_label_pred, return_counts=True)
+
+# 打印结果
+for label, count in zip(unique_labels, counts):
+    print(f"干净测试集Label: {label}, 预测Count: {count}")
+
+print("*"*100)
+
 # 训练样本中被SVM模型错误分类的样本
 wrong_classified_train_indices = np.where(y_train != train_label_pred)[0]
 print("训练样本中被SVM模型错误分类的样本占总训练样本的比例：", len(wrong_classified_train_indices)/len(y_train))
@@ -216,6 +262,21 @@ print("*" * 100)
 train_label_pred_noise = svm_model.predict(X_train_copy)
 test_label_pred_noise = svm_model.predict(X_test_copy)
 
+# 使用 np.unique 统计不同标签及其出现次数
+unique_labels, counts = np.unique(train_label_pred_noise, return_counts=True)
+
+# 打印结果
+for label, count in zip(unique_labels, counts):
+    print(f"加噪训练集Label: {label}, 预测Count: {count}")
+
+unique_labels, counts = np.unique(test_label_pred_noise, return_counts=True)
+
+# 打印结果
+for label, count in zip(unique_labels, counts):
+    print(f"加噪测试集Label: {label}, 预测Count: {count}")
+
+print("*"*100)
+
 # 加噪训练样本中被SVM模型错误分类的样本
 wrong_classified_train_indices_noise = np.where(y_train != train_label_pred_noise)[0]
 print("加噪训练样本中被SVM模型错误分类的样本占总加噪训练样本的比例：", len(wrong_classified_train_indices_noise)/len(y_train))
@@ -228,6 +289,53 @@ print("加噪测试样本中被SVM模型错误分类的样本占总测试样本�
 print("完整数据集D中被SVM模型错误分类的样本占总完整数据的比例：",
       (len(wrong_classified_train_indices_noise) + len(wrong_classified_test_indices_noise))/(len(y_train) + len(y_test)))
 
+# subsection 用多种指标评价加噪数据集中SVM的预测效果
+
+"""Precision/Recall/F1指标"""
+print("*" * 100)
+
+# average='micro': 全局计算 F1 分数，适用于处理类别不平衡的情况。
+# average='macro': 类别 F1 分数的简单平均，适用于需要均衡考虑每个类别的情况。
+# average='weighted': 加权 F1 分数，适用于类别不平衡的情况，考虑了每个类别的样本量。
+# average=None: 返回每个类别的 F1 分数，适用于详细分析每个类别的表现。
+y_test_pred = test_label_pred_noise
+print("SVM模型在加噪测试集中的分类精确度：" + str(precision_score(y_test, y_test_pred, average='weighted')))
+print("SVM模型在加噪测试集中的分类召回率：" + str(recall_score(y_test, y_test_pred, average='weighted')))
+print("SVM模型在加噪测试集中的分类F1分数：" + str(f1_score(y_test, y_test_pred, average='weighted')))
+
+"""ROC-AUC指标"""
+y_test_prob = svm_model.predict_proba(X_test)
+roc_auc_test = roc_auc_score(y_test, y_test_prob, multi_class='ovr')  # 一对多方式
+print("SVM模型在加噪测试集中的ROC-AUC分数：" + str(roc_auc_test))
+
+"""PR AUC指标(不支持多分类)"""
+# # 计算预测概率
+# y_scores = svm_model_noise.predict_proba(X_test)
+# # 遍历每个类别
+# pr_scores = []
+# for i in range(y_scores.shape[1]):
+#     precision, recall, _ = precision_recall_curve(y_test, y_scores[:, i])
+#     pr_auc = auc(recall, precision)
+#     pr_scores.append(pr_auc)
+#     print(f"SVM模型在修复测试集中的PR AUC 分数（类 {i}）: {pr_auc}")
+# # 如果需要计算所有类的宏平均 PR 分数
+# macro_pr_score = sum(pr_scores) / len(pr_scores)
+# print("SVM模型在修复测试集中的宏平均AP分数:", macro_pr_score)
+
+"""AP指标(不支持多分类)"""
+# # 计算预测概率
+# y_scores = svm_model_noise.predict_proba(X_test)
+# # 计算每个类别的 Average Precision
+# ap_scores = []
+# for i in range(y_scores.shape[1]):
+#     ap_score = average_precision_score(y_test, y_scores[:, i])
+#     ap_scores.append(ap_score)
+#     print(f"SVM模型在修复测试集中的AP分数（类 {i}）: {ap_score}")
+#
+# # 如果需要计算所有类的宏平均 AP 分数
+# macro_ap_score = sum(ap_scores) / len(ap_scores)
+# print("SVM模型在修复测试集中的宏平均AP分数:", macro_ap_score)
+
 # section 确定数据中需要修复的元组
 
 outlier_tuple_set = set()
@@ -235,6 +343,8 @@ for value in outlier_feature_indices.values():
     outlier_tuple_set.update(value)
 X_copy_repair_indices = list(outlier_tuple_set)
 X_copy_repair = X_copy[X_copy_repair_indices]
+print("总的样本数量为：", len(X_copy))
+print("需要修复的样本数量为：", len(X_copy_repair_indices))
 y_repair = y[X_copy_repair_indices]
 
 # 生成保留的行索引
@@ -263,10 +373,24 @@ y_test = y[test_indices]
 
 # subsection 重新在修复后的数据上训练SVM模型
 
+print("*"*100)
 svm_repair = svm.SVC(kernel='linear', C=1.0, probability=True)
 svm_repair.fit(X_train_copy, y_train)
 y_train_pred = svm_repair.predict(X_train_copy)
 y_test_pred = svm_repair.predict(X_test_copy)
+
+# 使用 np.unique 统计不同标签及其出现次数
+unique_labels, counts = np.unique(y_train_pred, return_counts=True)
+
+# 打印结果
+for label, count in zip(unique_labels, counts):
+    print(f"修复训练集Label: {label}, 预测Count: {count}")
+
+unique_labels, counts = np.unique(y_test_pred, return_counts=True)
+
+# 打印结果
+for label, count in zip(unique_labels, counts):
+    print(f"修复测试集Label: {label}, 预测Count: {count}")
 
 print("*" * 100)
 # 训练样本中被SVM模型错误分类的样本
@@ -280,6 +404,41 @@ print("加噪标签修复后，测试样本中被SVM模型错误分类的样本�
 # 整体数据集D中被SVM模型错误分类的样本
 print("加噪标签修复后，完整数据集D中被SVM模型错误分类的样本占总完整数据的比例：",
       (len(wrong_classified_train_indices) + len(wrong_classified_test_indices))/(len(y_train) + len(y_test)))
+
+# subsection 用多种指标评价SVM在修复后的数据上的预测效果
+
+"""Precision/Recall/F1指标"""
+print("*" * 100)
+
+# average='micro': 全局计算 F1 分数，适用于处理类别不平衡的情况。
+# average='macro': 类别 F1 分数的简单平均，适用于需要均衡考虑每个类别的情况。
+# average='weighted': 加权 F1 分数，适用于类别不平衡的情况，考虑了每个类别的样本量。
+# average=None: 返回每个类别的 F1 分数，适用于详细分析每个类别的表现。
+
+print("SVM模型在修复测试集中的分类精确度：" + str(precision_score(y_test, y_test_pred, average='weighted')))
+print("SVM模型在修复测试集中的分类召回率：" + str(recall_score(y_test, y_test_pred, average='weighted')))
+print("SVM模型在修复测试集中的分类F1分数：" + str(f1_score(y_test, y_test_pred, average='weighted')))
+
+"""ROC-AUC指标"""
+y_test_prob = svm_repair.predict_proba(X_test)
+roc_auc_test = roc_auc_score(y_test, y_test_prob, multi_class='ovr')  # 一对多方式
+print("SVM模型在修复测试集中的ROC-AUC分数：" + str(roc_auc_test))
+
+"""PR AUC指标(不支持多分类)"""
+# # 计算预测概率
+# y_scores = svm_repair.predict_proba(X_test)
+# # 计算 Precision 和 Recall
+# precision, recall, _ = precision_recall_curve(y_test, y_scores)
+# # 计算 PR AUC
+# pr_auc = auc(recall, precision)
+# print("SVM模型在修复测试集中的PR AUC 分数:", pr_auc)
+#
+"""AP指标(不支持多分类)"""
+# # 计算预测概率
+# y_scores = svm_repair.predict_proba(X_test)
+# # 计算 Average Precision
+# ap_score = average_precision_score(y_test, y_scores)
+# print("SVM模型在修复测试集中的AP分数:", ap_score)
 
 
 # # section 方案二：对X_copy中需要修复的元组进行特征修复（统计方法修复）
