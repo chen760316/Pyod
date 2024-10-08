@@ -23,15 +23,89 @@ np.set_printoptions(threshold=np.inf)
 
 # section 标准数据集处理，输入原始多分类数据集，在中间处理过程转化为异常检测数据集
 
-# choice drybean数据集
-
-# file_path = "../datasets/multi_class_to_outlier/drybean_outlier.csv"
-# data = pd.read_csv(file_path)
+# choice drybean数据集(效果好)
 file_path = "../datasets/multi_class/drybean.xlsx"
 data = pd.read_excel(file_path)
+
+# choice obesity数据集(效果好)
+# file_path = "../datasets/multi_class/obesity.csv"
+# data = pd.read_csv(file_path)
+
+# choice balita数据集(SVM拟合效果差，但修复后效果提升显著)
+# file_path = "../datasets/multi_class/balita.csv"
+# data = pd.read_csv(file_path)
+
+# choice apple数据集(效果提升小)
+# file_path = "../datasets/multi_class/apple.csv"
+# data = pd.read_csv(file_path)
+
+# choice adult数据集(效果提升明显)
+# file_path = "../datasets/multi_class/adult.csv"
+# data = pd.read_csv(file_path)
+
+# choice body数据集(执行较慢，SVM拟合效果很差，但修复后效果有提升)
+# file_path = "../datasets/multi_class/body/body.csv"
+# data = pd.read_csv(file_path)
+
+# # choice covertype数据集(执行很慢，SVM拟合效果很差，但修复后效果提升显著)
+# file_path = "../datasets/multi_class/covtype/covtype_process.csv"
+# data = pd.read_csv(file_path)
+
+# choice financial(SVM拟合效果很差，但修复后效果提升显著)
+# file_path = "../datasets/multi_class/financial/financial.csv"
+# data = pd.read_csv(file_path)
+
+# choice online(SVM拟合效果相对较差，但修复后效果提升显著)
+# file_path = "../datasets/multi_class/online/online.csv"
+# data = pd.read_csv(file_path)
+
+# choice star(SVM拟合相对准确，修复后效果提升显著)
+# file_path = "../datasets/multi_class/star/star.csv"
+# data = pd.read_csv(file_path)
+
+# choice student(SVM拟合相对较差，修复后效果提升显著)
+# file_path = "../datasets/multi_class/student/Student.csv"
+# data = pd.read_csv(file_path)
+
+# choice Iris数据集(效果一般)
+# file_path = "../datasets/multi_class/Iris.csv"
+# data = pd.read_csv(file_path)
+
+# choice 真实异常检测数据集+local类型异常（需要搭配非线性SVM，线性SVM下无法很好划分）
+# file_path = "../datasets/synthetic_outlier/annthyroid_0.1.csv"
+# data = pd.read_csv(file_path)
+
+# choice wine数据集(SVM拟合效果差，修复效果差)
+# file_path = "../datasets/multi_class/wine.csv"
+# data = pd.read_csv(file_path, sep=';')
+
+# choice 真实异常检测数据集（本身不包含错误数据，不适合用于修复任务，且需要搭配非线性SVM）
+# file_path = "../datasets/real_outlier/Cardiotocography.csv"
+# file_path = "../datasets/real_outlier/annthyroid.csv"
+# file_path = "../datasets/real_outlier/optdigits.csv"
+# file_path = "../datasets/real_outlier/PageBlocks.csv"
+# file_path = "../datasets/real_outlier/pendigits.csv"
+# file_path = "../datasets/real_outlier/satellite.csv"
+# file_path = "../datasets/real_outlier/shuttle.csv"
+# file_path = "../datasets/real_outlier/yeast.csv"
+# data = pd.read_csv(file_path)
+
 enc = LabelEncoder()
+label_name = data.columns[-1]
+
 # 原始数据集D对应的Dataframe
-data['Class'] = enc.fit_transform(data['Class'])
+data[label_name] = enc.fit_transform(data[label_name])
+
+# 检测非数值列
+non_numeric_columns = data.select_dtypes(exclude=[np.number]).columns
+
+# 为每个非数值列创建一个 LabelEncoder 实例
+encoders = {}
+for column in non_numeric_columns:
+    encoder = LabelEncoder()
+    data[column] = encoder.fit_transform(data[column])
+    encoders[column] = encoder  # 保存每个列的编码器，以便将来可能需要解码
+
 X = data.values[:, :-1]
 y = data.values[:, -1]
 
@@ -116,42 +190,10 @@ y_semi_test = np.zeros_like(y_test)
 test_positive_indices = np.where(y_test == min_label)[0]
 y_semi_test[test_positive_indices] = 1
 
-# choice DevNet异常检测器
-# out_clf = DevNet(epochs=epochs, hidden_dims=hidden_dims, device=device,
-#                           random_state=random_state)
-# out_clf.fit(X_train, y_semi)
-# out_clf_noise = DevNet(epochs=epochs, hidden_dims=hidden_dims, device=device,
-#                           random_state=random_state)
-# out_clf_noise.fit(X_train_copy, y_semi)
-
-# choice DeepSAD异常检测器
-# out_clf = DeepSAD(epochs=epochs, hidden_dims=hidden_dims,
-#                    device=device,
-#                    random_state=random_state)
-# out_clf.fit(X_train, y_semi)
-# out_clf_noise = DeepSAD(epochs=epochs, hidden_dims=hidden_dims,
-#                    device=device,
-#                    random_state=random_state)
-# out_clf_noise.fit(X_train_copy, y_semi)
-
-# choice RoSAS异常检测器
-# out_clf = RoSAS(epochs=epochs, hidden_dims=hidden_dims, device=device, random_state=random_state)
-# out_clf.fit(X_train, y_semi)
-# out_clf_noise = RoSAS(epochs=epochs, hidden_dims=hidden_dims, device=device, random_state=random_state)
-# out_clf_noise.fit(X_train_copy, y_semi)
-
-# choice PReNeT异常检测器
-out_clf = PReNet(epochs=epochs,
-                  epoch_steps=epoch_steps,
-                  device=device,
-                  batch_size=batch_size,
-                  lr=lr)
+# choice XGBOD异常检测器
+out_clf = XGBOD()
 out_clf.fit(X_train, y_semi)
-out_clf_noise = PReNet(epochs=epochs,
-                  epoch_steps=epoch_steps,
-                  device=device,
-                  batch_size=batch_size,
-                  lr=lr)
+out_clf_noise = XGBOD()
 out_clf_noise.fit(X_train_copy, y_semi)
 
 # SECTION 借助异常检测器，在训练集上进行异常值检测。
@@ -161,7 +203,7 @@ out_clf_noise.fit(X_train_copy, y_semi)
 
 print("*"*100)
 train_scores = out_clf.decision_function(X_train)
-train_pred_labels, train_confidence = out_clf.predict(X_train, return_confidence=True)
+train_pred_labels = out_clf.predict(X_train)
 print("训练集中异常值判定阈值为：", out_clf.threshold_)
 train_outliers_index = []
 print("训练集样本数：", len(X_train))
@@ -182,7 +224,7 @@ print("训练集中检测到的异常值比例：", len(train_outliers_index)/le
 
 print("*"*100)
 test_scores = out_clf.decision_function(X_test)
-test_pred_labels, test_confidence = out_clf.predict(X_test, return_confidence=True)
+test_pred_labels = out_clf.predict(X_test)
 print("测试集中异常值判定阈值为：", out_clf.threshold_)
 test_outliers_index = []
 print("测试集样本数：", len(X_test))
@@ -205,8 +247,8 @@ print("测试集中的异常值比例：", len(test_outliers_index)/len(X_test))
 
 print("*"*100)
 train_scores_noise = out_clf_noise.decision_function(X_train_copy)
-train_pred_labels_noise, train_confidence_noise = out_clf_noise.predict(X_train_copy, return_confidence=True)
-print("加噪训练集中异常值判定阈值为：", out_clf_noise.threshold_)
+train_pred_labels_noise, train_confidence_noise = out_clf_noise.predict(X_train_copy)
+# print("加噪训练集中异常值判定阈值为：", out_clf_noise.threshold_)
 train_outliers_index_noise = []
 print("加噪训练集样本数：", len(X_train_copy))
 for i in range(len(X_train_copy)):
@@ -226,8 +268,8 @@ print("加噪训练集中的异常值比例：", len(train_outliers_index_noise)
 
 print("*"*100)
 test_scores_noise = out_clf_noise.decision_function(X_test_copy)
-test_pred_labels_noise, test_confidence_noise = out_clf_noise.predict(X_test_copy, return_confidence=True)
-print("加噪测试集中异常值判定阈值为：", out_clf_noise.threshold_)
+test_pred_labels_noise, test_confidence_noise = out_clf_noise.predict(X_test_copy)
+# print("加噪测试集中异常值判定阈值为：", out_clf_noise.threshold_)
 test_outliers_index_noise = []
 print("加噪测试集样本数：", len(X_test_copy))
 for i in range(len(X_test_copy)):
@@ -243,7 +285,6 @@ print("测试集中异常检测器的检测准确度：", len(test_correct_detec
 print("加噪测试集中异常值索引：", test_outliers_index_noise)
 print("加噪测试集中的异常值数量：", len(test_outliers_index_noise))
 print("加噪测试集中的异常值比例：", len(test_outliers_index_noise)/len(X_test_copy))
-
 # SECTION Naive Bayes模型的实现
 
 # subsection 原始数据集上训练的Naive Bayes模型在训练集和测试集中分错的样本比例
