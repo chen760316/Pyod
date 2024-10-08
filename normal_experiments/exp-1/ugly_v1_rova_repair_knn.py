@@ -9,7 +9,7 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
 import numpy as np
 import torch
-from sklearn import svm
+from deepod.models.tabular import GOAD
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.impute import KNNImputer
 from lime.lime_tabular import LimeTabularExplainer
@@ -96,8 +96,8 @@ import re
 i = len(feature_names)
 np.random.seed(1)
 categorical_names = {}
-svm_model = svm.SVC(kernel='linear', C=1.0, probability=True, class_weight='balanced')
-svm_model.fit(X_train_copy, y_train)
+knn_model = KNeighborsClassifier(n_neighbors=22)
+knn_model.fit(X_train_copy, y_train)
 
 for feature in categorical_features:
     le = LabelEncoder()
@@ -109,7 +109,7 @@ explainer = LimeTabularExplainer(X_train, feature_names=feature_names, class_nam
                                                    categorical_features=categorical_features,
                                                    categorical_names=categorical_names, kernel_width=3)
 
-predict_fn = lambda x: svm_model.predict_proba(x)
+predict_fn = lambda x: knn_model.predict_proba(x)
 exp = explainer.explain_instance(X_train[i], predict_fn, num_features=len(feature_names)//2)
 # 获取最具影响力的特征及其权重
 top_features = exp.as_list()
@@ -133,11 +133,11 @@ print("LIME检验的最有影响力的属性的索引：{}".format(top_k_indices
 # section 找到loss(M, D, 𝑡) > 𝜆的元组
 
 # choice 使用sklearn库中的hinge损失函数
-decision_values = svm_model.decision_function(X_copy)
+decision_values = knn_model.predict_proba(X_copy)
 predicted_labels = np.argmax(decision_values, axis=1)
 # 计算每个样本的hinge损失
 num_samples = X_copy.shape[0]
-num_classes = svm_model.classes_.shape[0]
+num_classes = knn_model.classes_.shape[0]
 hinge_losses = np.zeros((num_samples, num_classes))
 hinge_loss = np.zeros(num_samples)
 for i in range(num_samples):
@@ -188,44 +188,44 @@ for column_indice in top_k_indices:
     outlier_feature_indices[column_indice] = intersection
 # print(outlier_feature_indices)
 
-# SECTION SVM模型的实现
+# SECTION KNN模型的实现
 
-# subsection 原始数据集上训练的SVM模型在训练集和测试集中分错的样本比例
+# subsection 原始数据集上训练的KNN模型在训练集和测试集中分错的样本比例
 
 print("*" * 100)
-svm_clf = svm.SVC(kernel='linear', C=1.0, probability=True, class_weight='balanced')
-svm_clf.fit(X_train, y_train)
-train_label_pred = svm_clf.predict(X_train)
-test_label_pred = svm_clf.predict(X_test)
+knn_clf = KNeighborsClassifier(n_neighbors=22)
+knn_clf.fit(X_train, y_train)
+train_label_pred = knn_clf.predict(X_train)
+test_label_pred = knn_clf.predict(X_test)
 
-# 训练样本中被SVM模型错误分类的样本
+# 训练样本中被KNN模型错误分类的样本
 wrong_classified_train_indices = np.where(y_train != train_label_pred)[0]
-print("训练样本中被SVM模型错误分类的样本占总训练样本的比例：", len(wrong_classified_train_indices)/len(y_train))
+print("训练样本中被KNN模型错误分类的样本占总训练样本的比例：", len(wrong_classified_train_indices)/len(y_train))
 
-# 测试样本中被SVM模型错误分类的样本
+# 测试样本中被KNN模型错误分类的样本
 wrong_classified_test_indices = np.where(y_test != test_label_pred)[0]
-print("测试样本中被SVM模型错误分类的样本占总测试样本的比例：", len(wrong_classified_test_indices)/len(y_test))
+print("测试样本中被KNN模型错误分类的样本占总测试样本的比例：", len(wrong_classified_test_indices)/len(y_test))
 
-# 整体数据集D中被SVM模型错误分类的样本
-print("完整数据集D中被SVM模型错误分类的样本占总完整数据的比例：",
+# 整体数据集D中被KNN模型错误分类的样本
+print("完整数据集D中被KNN模型错误分类的样本占总完整数据的比例：",
       (len(wrong_classified_train_indices) + len(wrong_classified_test_indices))/(len(y_train) + len(y_test)))
 
-# subsection 加噪数据集上训练的SVM模型在训练集和测试集中分错的样本比例
+# subsection 加噪数据集上训练的KNN模型在训练集和测试集中分错的样本比例
 
 print("*" * 100)
-train_label_pred_noise = svm_model.predict(X_train_copy)
-test_label_pred_noise = svm_model.predict(X_test_copy)
+train_label_pred_noise = knn_model.predict(X_train_copy)
+test_label_pred_noise = knn_model.predict(X_test_copy)
 
-# 加噪训练样本中被SVM模型错误分类的样本
+# 加噪训练样本中被KNN模型错误分类的样本
 wrong_classified_train_indices_noise = np.where(y_train != train_label_pred_noise)[0]
-print("加噪训练样本中被SVM模型错误分类的样本占总加噪训练样本的比例：", len(wrong_classified_train_indices_noise)/len(y_train))
+print("加噪训练样本中被KNN模型错误分类的样本占总加噪训练样本的比例：", len(wrong_classified_train_indices_noise)/len(y_train))
 
-# 加噪测试样本中被SVM模型错误分类的样本
+# 加噪测试样本中被KNN模型错误分类的样本
 wrong_classified_test_indices_noise = np.where(y_test != test_label_pred_noise)[0]
-print("加噪测试样本中被SVM模型错误分类的样本占总测试样本的比例：", len(wrong_classified_test_indices_noise)/len(y_test))
+print("加噪测试样本中被KNN模型错误分类的样本占总测试样本的比例：", len(wrong_classified_test_indices_noise)/len(y_test))
 
-# 整体加噪数据集D中被SVM模型错误分类的样本
-print("完整数据集D中被SVM模型错误分类的样本占总完整数据的比例：",
+# 整体加噪数据集D中被KNN模型错误分类的样本
+print("完整数据集D中被KNN模型错误分类的样本占总完整数据的比例：",
       (len(wrong_classified_train_indices_noise) + len(wrong_classified_test_indices_noise))/(len(y_train) + len(y_test)))
 
 # section 确定数据中需要修复的元组
@@ -246,7 +246,7 @@ X_copy_inners = X_copy[rows_to_keep]
 y_inners = y[rows_to_keep]
 
 # section 方案一：对X_copy中需要修复的元组进行标签修复（knn方法）
-#  需要修复的元组通过异常值检测器检测到的元组和SVM分类错误的元组共同确定（取并集）
+#  需要修复的元组通过异常值检测器检测到的元组和KNN分类错误的元组共同确定（取并集）
 
 # subsection 尝试修复异常数据的标签
 
@@ -261,29 +261,29 @@ y[X_copy_repair_indices] = y_pred
 y_train = y[train_indices]
 y_test = y[test_indices]
 
-# subsection 重新在修复后的数据上训练SVM模型
+# subsection 重新在修复后的数据上训练KNN模型
 
-svm_repair = svm.SVC(kernel='linear', C=1.0, probability=True, class_weight='balanced')
-svm_repair.fit(X_train_copy, y_train)
-y_train_pred = svm_repair.predict(X_train_copy)
-y_test_pred = svm_repair.predict(X_test_copy)
+knn_repair = KNeighborsClassifier(n_neighbors=22)
+knn_repair.fit(X_train_copy, y_train)
+y_train_pred = knn_repair.predict(X_train_copy)
+y_test_pred = knn_repair.predict(X_test_copy)
 
 print("*" * 100)
-# 训练样本中被SVM模型错误分类的样本
+# 训练样本中被KNN模型错误分类的样本
 wrong_classified_train_indices = np.where(y_train != y_train_pred)[0]
-print("加噪标签修复后，训练样本中被SVM模型错误分类的样本占总训练样本的比例：", len(wrong_classified_train_indices)/len(y_train))
+print("加噪标签修复后，训练样本中被KNN模型错误分类的样本占总训练样本的比例：", len(wrong_classified_train_indices)/len(y_train))
 
-# 测试样本中被SVM模型错误分类的样本
+# 测试样本中被KNN模型错误分类的样本
 wrong_classified_test_indices = np.where(y_test != y_test_pred)[0]
-print("加噪标签修复后，测试样本中被SVM模型错误分类的样本占总测试样本的比例：", len(wrong_classified_test_indices)/len(y_test))
+print("加噪标签修复后，测试样本中被KNN模型错误分类的样本占总测试样本的比例：", len(wrong_classified_test_indices)/len(y_test))
 
-# 整体数据集D中被SVM模型错误分类的样本
-print("加噪标签修复后，完整数据集D中被SVM模型错误分类的样本占总完整数据的比例：",
+# 整体数据集D中被KNN模型错误分类的样本
+print("加噪标签修复后，完整数据集D中被KNN模型错误分类的样本占总完整数据的比例：",
       (len(wrong_classified_train_indices) + len(wrong_classified_test_indices))/(len(y_train) + len(y_test)))
 
 
 # # section 方案二：对X_copy中需要修复的元组进行特征修复（统计方法修复）
-# #  需要修复的元组通过异常值检测器检测到的元组和SVM分类错误的元组共同确定（取并集）(修复效果由于监督/无监督基准)
+# #  需要修复的元组通过异常值检测器检测到的元组和KNN分类错误的元组共同确定（取并集）(修复效果由于监督/无监督基准)
 #
 # # subsection 确定有影响力特征中的离群值并采用均值修复
 # for i in range(X_copy.shape[1]):
@@ -297,24 +297,24 @@ print("加噪标签修复后，完整数据集D中被SVM模型错误分类的样
 # X_train_copy = X_copy[train_indices]
 # X_test_copy = X_copy[test_indices]
 #
-# # subsection 重新在修复后的数据上训练SVM模型
+# # subsection 重新在修复后的数据上训练KNN模型
 #
-# svm_repair = svm.SVC(kernel='linear', C=1.0, probability=True, class_weight='balanced')
-# svm_repair.fit(X_train_copy, y_train)
-# y_train_pred = svm_repair.predict(X_train_copy)
-# y_test_pred = svm_repair.predict(X_test_copy)
+# knn_repair = KNeighborsClassifier(n_neighbors=22)
+# knn_repair.fit(X_train_copy, y_train)
+# y_train_pred = knn_repair.predict(X_train_copy)
+# y_test_pred = knn_repair.predict(X_test_copy)
 #
 # print("*" * 100)
-# # 训练样本中被SVM模型错误分类的样本
+# # 训练样本中被KNN模型错误分类的样本
 # wrong_classified_train_indices = np.where(y_train != y_train_pred)[0]
-# print("加噪标签修复后，训练样本中被SVM模型错误分类的样本占总训练样本的比例：", len(wrong_classified_train_indices)/len(y_train))
+# print("加噪标签修复后，训练样本中被KNN模型错误分类的样本占总训练样本的比例：", len(wrong_classified_train_indices)/len(y_train))
 #
-# # 测试样本中被SVM模型错误分类的样本
+# # 测试样本中被KNN模型错误分类的样本
 # wrong_classified_test_indices = np.where(y_test != y_test_pred)[0]
-# print("加噪标签修复后，测试样本中被SVM模型错误分类的样本占总测试样本的比例：", len(wrong_classified_test_indices)/len(y_test))
+# print("加噪标签修复后，测试样本中被KNN模型错误分类的样本占总测试样本的比例：", len(wrong_classified_test_indices)/len(y_test))
 #
-# # 整体数据集D中被SVM模型错误分类的样本
-# print("加噪标签修复后，完整数据集D中被SVM模型错误分类的样本占总完整数据的比例：",
+# # 整体数据集D中被KNN模型错误分类的样本
+# print("加噪标签修复后，完整数据集D中被KNN模型错误分类的样本占总完整数据的比例：",
 #       (len(wrong_classified_train_indices) + len(wrong_classified_test_indices))/(len(y_train) + len(y_test)))
 
 
@@ -338,29 +338,29 @@ print("加噪标签修复后，完整数据集D中被SVM模型错误分类的样
 # X_train_copy = X_copy[train_indices]
 # X_test_copy = X_copy[test_indices]
 #
-# svm_repair = svm.SVC(kernel='linear', C=1.0, probability=True, class_weight='balanced')
-# svm_repair.fit(X_train_copy, y_train)
-# y_train_pred = svm_repair.predict(X_train_copy)
-# y_test_pred = svm_repair.predict(X_test_copy)
+# knn_repair = KNeighborsClassifier(n_neighbors=22)
+# knn_repair.fit(X_train_copy, y_train)
+# y_train_pred = knn_repair.predict(X_train_copy)
+# y_test_pred = knn_repair.predict(X_test_copy)
 #
 # print("*" * 100)
-# # 训练样本中被SVM模型错误分类的样本
+# # 训练样本中被KNN模型错误分类的样本
 # wrong_classified_train_indices = np.where(y_train != y_train_pred)[0]
-# print("借助knn修复需要修复的样本后，训练样本中被SVM模型错误分类的样本占总训练样本的比例：",
+# print("借助knn修复需要修复的样本后，训练样本中被KNN模型错误分类的样本占总训练样本的比例：",
 #       len(wrong_classified_train_indices)/len(y_train))
 #
-# # 测试样本中被SVM模型错误分类的样本
+# # 测试样本中被KNN模型错误分类的样本
 # wrong_classified_test_indices = np.where(y_test != y_test_pred)[0]
-# print("借助knn修复需要修复的样本后，测试样本中被SVM模型错误分类的样本占总测试样本的比例：",
+# print("借助knn修复需要修复的样本后，测试样本中被KNN模型错误分类的样本占总测试样本的比例：",
 #       len(wrong_classified_test_indices)/len(y_test))
 #
-# # 整体数据集D中被SVM模型错误分类的样本
-# print("借助knn修复需要修复的样本后，完整数据集D中被SVM模型错误分类的样本占总完整数据的比例：",
+# # 整体数据集D中被KNN模型错误分类的样本
+# print("借助knn修复需要修复的样本后，完整数据集D中被KNN模型错误分类的样本占总完整数据的比例：",
 #       (len(wrong_classified_train_indices) + len(wrong_classified_test_indices))
 #       /(len(y_train) + len(y_test)))
 
 
-# # section 方案四：将X_copy中训练集和测试集需要修复的元组直接删除，在去除后的训练集上训练svm模型
+# # section 方案四：将X_copy中训练集和测试集需要修复的元组直接删除，在去除后的训练集上训练KNN模型
 #
 # set_X_copy_repair = set(X_copy_repair_indices)
 #
@@ -380,26 +380,26 @@ print("加噪标签修复后，完整数据集D中被SVM模型错误分类的样
 # X_test_copy_repair = X_copy[test_indices]
 # y_test_copy_repair = y[test_indices]
 #
-# # subsection 重新在修复后的数据上训练SVM模型
+# # subsection 重新在修复后的数据上训练KNN模型
 #
-# svm_repair = svm.SVC(kernel='linear', C=1.0, probability=True, class_weight='balanced')
-# svm_repair.fit(X_train_copy_repair, y_train_copy_repair)
-# y_train_pred = svm_repair.predict(X_train_copy_repair)
-# y_test_pred = svm_repair.predict(X_test_copy_repair)
+# knn_repair = KNeighborsClassifier(n_neighbors=22)
+# knn_repair.fit(X_train_copy_repair, y_train_copy_repair)
+# y_train_pred = knn_repair.predict(X_train_copy_repair)
+# y_test_pred = knn_repair.predict(X_test_copy_repair)
 #
 # print("*" * 100)
-# # 训练样本中被SVM模型错误分类的样本
+# # 训练样本中被KNN模型错误分类的样本
 # wrong_classified_train_indices = np.where(y_train_copy_repair != y_train_pred)[0]
-# print("删除需要修复的样本后，训练样本中被SVM模型错误分类的样本占总训练样本的比例：",
+# print("删除需要修复的样本后，训练样本中被KNN模型错误分类的样本占总训练样本的比例：",
 #       len(wrong_classified_train_indices)/len(y_train_copy_repair))
 #
-# # 测试样本中被SVM模型错误分类的样本
+# # 测试样本中被KNN模型错误分类的样本
 # wrong_classified_test_indices = np.where(y_test_copy_repair != y_test_pred)[0]
-# print("删除需要修复的样本后，测试样本中被SVM模型错误分类的样本占总测试样本的比例：",
+# print("删除需要修复的样本后，测试样本中被KNN模型错误分类的样本占总测试样本的比例：",
 #       len(wrong_classified_test_indices)/len(y_test_copy_repair))
 #
-# # 整体数据集D中被SVM模型错误分类的样本
-# print("删除需要修复的样本后，完整数据集D中被SVM模型错误分类的样本占总完整数据的比例：",
+# # 整体数据集D中被KNN模型错误分类的样本
+# print("删除需要修复的样本后，完整数据集D中被KNN模型错误分类的样本占总完整数据的比例：",
 #       (len(wrong_classified_train_indices) + len(wrong_classified_test_indices))
 #       /(len(y_train_copy_repair) + len(y_test_copy_repair)))
 
@@ -432,24 +432,24 @@ print("加噪标签修复后，完整数据集D中被SVM模型错误分类的样
 # y_train = y[train_indices]
 # y_test = y[test_indices]
 #
-# # subsection 重新在修复后的数据上训练SVM模型
+# # subsection 重新在修复后的数据上训练KNN模型
 #
-# svm_repair = svm.SVC(kernel='linear', C=1.0, probability=True, class_weight='balanced')
-# svm_repair.fit(X_train_copy, y_train)
-# y_train_pred = svm_repair.predict(X_train_copy)
-# y_test_pred = svm_repair.predict(X_test_copy)
+# knn_repair = KNeighborsClassifier(n_neighbors=22)
+# knn_repair.fit(X_train_copy, y_train)
+# y_train_pred = knn_repair.predict(X_train_copy)
+# y_test_pred = knn_repair.predict(X_test_copy)
 #
 # print("*" * 100)
-# # 训练样本中被SVM模型错误分类的样本
+# # 训练样本中被KNN模型错误分类的样本
 # wrong_classified_train_indices = np.where(y_train != y_train_pred)[0]
-# print("加噪标签修复后，训练样本中被SVM模型错误分类的样本占总训练样本的比例：", len(wrong_classified_train_indices)/len(y_train))
+# print("加噪标签修复后，训练样本中被KNN模型错误分类的样本占总训练样本的比例：", len(wrong_classified_train_indices)/len(y_train))
 #
-# # 测试样本中被SVM模型错误分类的样本
+# # 测试样本中被KNN模型错误分类的样本
 # wrong_classified_test_indices = np.where(y_test != y_test_pred)[0]
-# print("加噪标签修复后，测试样本中被SVM模型错误分类的样本占总测试样本的比例：", len(wrong_classified_test_indices)/len(y_test))
+# print("加噪标签修复后，测试样本中被KNN模型错误分类的样本占总测试样本的比例：", len(wrong_classified_test_indices)/len(y_test))
 #
-# # 整体数据集D中被SVM模型错误分类的样本
-# print("加噪标签修复后，完整数据集D中被SVM模型错误分类的样本占总完整数据的比例：",
+# # 整体数据集D中被KNN模型错误分类的样本
+# print("加噪标签修复后，完整数据集D中被KNN模型错误分类的样本占总完整数据的比例：",
 #       (len(wrong_classified_train_indices) + len(wrong_classified_test_indices))/(len(y_train) + len(y_test)))
 
 
@@ -481,22 +481,22 @@ print("加噪标签修复后，完整数据集D中被SVM模型错误分类的样
 # y_train = y[train_indices]
 # y_test = y[test_indices]
 #
-# # subsection 重新在修复后的数据上训练SVM模型
+# # subsection 重新在修复后的数据上训练KNN模型
 #
-# svm_repair = svm.SVC(kernel='linear', C=1.0, probability=True, class_weight='balanced')
-# svm_repair.fit(X_train_copy, y_train)
-# y_train_pred = svm_repair.predict(X_train_copy)
-# y_test_pred = svm_repair.predict(X_test_copy)
+# knn_repair = KNeighborsClassifier(n_neighbors=22)
+# knn_repair.fit(X_train_copy, y_train)
+# y_train_pred = knn_repair.predict(X_train_copy)
+# y_test_pred = knn_repair.predict(X_test_copy)
 #
 # print("*" * 100)
-# # 训练样本中被SVM模型错误分类的样本
+# # 训练样本中被KNN模型错误分类的样本
 # wrong_classified_train_indices = np.where(y_train != y_train_pred)[0]
-# print("加噪标签修复后，训练样本中被SVM模型错误分类的样本占总训练样本的比例：", len(wrong_classified_train_indices)/len(y_train))
+# print("加噪标签修复后，训练样本中被KNN模型错误分类的样本占总训练样本的比例：", len(wrong_classified_train_indices)/len(y_train))
 #
-# # 测试样本中被SVM模型错误分类的样本
+# # 测试样本中被KNN模型错误分类的样本
 # wrong_classified_test_indices = np.where(y_test != y_test_pred)[0]
-# print("加噪标签修复后，测试样本中被SVM模型错误分类的样本占总测试样本的比例：", len(wrong_classified_test_indices)/len(y_test))
+# print("加噪标签修复后，测试样本中被KNN模型错误分类的样本占总测试样本的比例：", len(wrong_classified_test_indices)/len(y_test))
 #
-# # 整体数据集D中被SVM模型错误分类的样本
-# print("加噪标签修复后，完整数据集D中被SVM模型错误分类的样本占总完整数据的比例：",
+# # 整体数据集D中被KNN模型错误分类的样本
+# print("加噪标签修复后，完整数据集D中被KNN模型错误分类的样本占总完整数据的比例：",
 #       (len(wrong_classified_train_indices) + len(wrong_classified_test_indices))/(len(y_train) + len(y_test)))

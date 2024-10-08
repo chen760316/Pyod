@@ -9,11 +9,10 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
 import numpy as np
 import torch
-from sklearn import svm
+from sklearn import tree
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.impute import KNNImputer
 from lime.lime_tabular import LimeTabularExplainer
-from sklearn.preprocessing import MinMaxScaler
 from pyod.models.abod import ABOD
 from pyod.models.cof import COF
 from pyod.models.copod import COPOD
@@ -23,6 +22,7 @@ from pyod.models.loda import LODA
 from pyod.models.lof import LOF
 from pyod.models.ocsvm import OCSVM
 from pyod.models.sod import SOD
+from sklearn.preprocessing import MinMaxScaler
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
@@ -122,10 +122,10 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 n_trans = 64
 random_state = 42
 
-out_clf = ABOD()
+out_clf = PReNet(epochs=epochs, device=device, random_state=random_state)
 out_clf.fit(X_train, y=y_semi)
 
-out_clf_noise = ABOD()
+out_clf_noise = PReNet(epochs=epochs, device=device, random_state=random_state)
 out_clf_noise.fit(X_train_copy, y_semi)
 
 # SECTION 借助异常检测器，在训练集上进行异常值检测
@@ -215,43 +215,43 @@ print("加噪测试集中异常值索引：", test_outliers_index_noise)
 print("加噪测试集中的异常值数量：", len(test_outliers_index_noise))
 print("加噪测试集中的异常值比例：", len(test_outliers_index_noise)/len(X_test_copy))
 
-# SECTION SVM模型的实现和准确度测试
+# SECTION decision tree模型的实现和准确度测试
 
-# subsection 原始数据集上训练的SVM模型在训练集和测试集中分错的样本比例
-
-print("*" * 100)
-svm_model = svm.SVC(kernel='linear', C=1.0, probability=True, class_weight='balanced')
-svm_model.fit(X_train, y_train)
-train_label_pred = svm_model.predict(X_train)
-
-# 训练样本中被SVM模型错误分类的样本
-wrong_classified_train_indices = np.where(y_train != svm_model.predict(X_train))[0]
-print("训练样本中被SVM模型错误分类的样本占总训练样本的比例：", len(wrong_classified_train_indices)/len(y_train))
-
-# 测试样本中被SVM模型错误分类的样本
-wrong_classified_test_indices = np.where(y_test != svm_model.predict(X_test))[0]
-print("测试样本中被SVM模型错误分类的样本占总测试样本的比例：", len(wrong_classified_test_indices)/len(y_test))
-
-# 整体数据集D中被SVM模型错误分类的样本
-print("完整数据集D中被SVM模型错误分类的样本占总完整数据的比例：", (len(wrong_classified_train_indices) + len(wrong_classified_test_indices))/(len(y_train) + len(y_test)))
-
-# subsection 加噪数据集上训练的SVM模型在训练集和测试集中分错的样本比例
+# subsection 原始数据集上训练的decision tree模型在训练集和测试集中分错的样本比例
 
 print("*" * 100)
-svm_model_noise = svm.SVC(kernel='linear', C=1.0, probability=True, class_weight='balanced')
-svm_model_noise.fit(X_train_copy, y_train)
-train_label_pred_noise = svm_model_noise.predict(X_train_copy)
+dt_model = tree.DecisionTreeClassifier(class_weight='balanced')
+dt_model.fit(X_train, y_train)
+train_label_pred = dt_model.predict(X_train)
 
-# 加噪训练样本中被SVM模型错误分类的样本
-wrong_classified_train_indices_noise = np.where(y_train != svm_model_noise.predict(X_train_copy))[0]
-print("加噪训练样本中被SVM模型错误分类的样本占总加噪训练样本的比例：", len(wrong_classified_train_indices_noise)/len(y_train))
+# 训练样本中被decision tree模型错误分类的样本
+wrong_classified_train_indices = np.where(y_train != dt_model.predict(X_train))[0]
+print("训练样本中被decision tree模型错误分类的样本占总训练样本的比例：", len(wrong_classified_train_indices)/len(y_train))
 
-# 加噪测试样本中被SVM模型错误分类的样本
-wrong_classified_test_indices_noise = np.where(y_test != svm_model_noise.predict(X_test_copy))[0]
-print("加噪测试样本中被SVM模型错误分类的样本占总测试样本的比例：", len(wrong_classified_test_indices_noise)/len(y_test))
+# 测试样本中被decision tree模型错误分类的样本
+wrong_classified_test_indices = np.where(y_test != dt_model.predict(X_test))[0]
+print("测试样本中被decision tree模型错误分类的样本占总测试样本的比例：", len(wrong_classified_test_indices)/len(y_test))
 
-# 整体加噪数据集D中被SVM模型错误分类的样本
-print("完整数据集D中被SVM模型错误分类的样本占总完整数据的比例：", (len(wrong_classified_train_indices_noise) + len(wrong_classified_test_indices_noise))/(len(y_train) + len(y_test)))
+# 整体数据集D中被decision tree模型错误分类的样本
+print("完整数据集D中被decision tree模型错误分类的样本占总完整数据的比例：", (len(wrong_classified_train_indices) + len(wrong_classified_test_indices))/(len(y_train) + len(y_test)))
+
+# subsection 加噪数据集上训练的decision tree模型在训练集和测试集中分错的样本比例
+
+print("*" * 100)
+dt_model_noise = tree.DecisionTreeClassifier(class_weight='balanced')
+dt_model_noise.fit(X_train_copy, y_train)
+train_label_pred_noise = dt_model_noise.predict(X_train_copy)
+
+# 加噪训练样本中被decision tree模型错误分类的样本
+wrong_classified_train_indices_noise = np.where(y_train != dt_model_noise.predict(X_train_copy))[0]
+print("加噪训练样本中被decision tree模型错误分类的样本占总加噪训练样本的比例：", len(wrong_classified_train_indices_noise)/len(y_train))
+
+# 加噪测试样本中被decision tree模型错误分类的样本
+wrong_classified_test_indices_noise = np.where(y_test != dt_model_noise.predict(X_test_copy))[0]
+print("加噪测试样本中被decision tree模型错误分类的样本占总测试样本的比例：", len(wrong_classified_test_indices_noise)/len(y_test))
+
+# 整体加噪数据集D中被decision tree模型错误分类的样本
+print("完整数据集D中被decision tree模型错误分类的样本占总完整数据的比例：", (len(wrong_classified_train_indices_noise) + len(wrong_classified_test_indices_noise))/(len(y_train) + len(y_test)))
 
 # section 确定有影响力的特征
 # choice LIME(Local Interpretable Model-Agnostic Explanation)(效果好)
@@ -270,7 +270,7 @@ explainer = LimeTabularExplainer(X_train, feature_names=feature_names, class_nam
                                                    categorical_features=categorical_features,
                                                    categorical_names=categorical_names, kernel_width=3)
 # predict_proba 方法用于分类任务，predict 方法用于回归任务
-predict_fn = lambda x: svm_model.predict_proba(x)
+predict_fn = lambda x: dt_model.predict_proba(x)
 exp = explainer.explain_instance(X_train[i], predict_fn, num_features=len(feature_names)//2)
 # 获取最具影响力的特征及其权重
 top_features = exp.as_list()
@@ -297,7 +297,7 @@ train_outliers_noise = train_indices[train_outliers_index_noise]
 test_outliers_noise = test_indices[test_outliers_index_noise]
 outliers_noise = np.union1d(train_outliers_noise, test_outliers_noise)
 
-# 在加噪数据集D'上训练的SVM模型，其分类错误的样本在原含噪数据D'中的索引
+# 在加噪数据集D'上训练的decision tree模型，其分类错误的样本在原含噪数据D'中的索引
 train_wrong_clf_noise = train_indices[wrong_classified_train_indices_noise]
 test_wrong_clf_noise = test_indices[wrong_classified_test_indices_noise]
 wrong_clf_noise = np.union1d(train_wrong_clf_noise, test_wrong_clf_noise)
@@ -389,7 +389,7 @@ X_copy_inners = X_copy[rows_to_keep]
 y_inners = y[rows_to_keep]
 
 # section 方案一：对X_copy中需要修复的元组进行标签修复（knn方法）
-#  需要修复的元组通过异常值检测器检测到的元组和SVM分类错误的元组共同确定（取并集）
+#  需要修复的元组通过异常值检测器检测到的元组和decision tree分类错误的元组共同确定（取并集）
 
 # subsection 尝试修复异常数据的标签
 
@@ -404,28 +404,28 @@ y[X_copy_repair_indices] = y_pred
 y_train = y[train_indices]
 y_test = y[test_indices]
 
-# subsection 重新在修复后的数据上训练SVM模型
+# subsection 重新在修复后的数据上训练decision tree模型
 
-svm_repair = svm.SVC(kernel='linear', C=1.0, probability=True, class_weight='balanced')
-svm_repair.fit(X_train_copy, y_train)
-y_train_pred = svm_repair.predict(X_train_copy)
-y_test_pred = svm_repair.predict(X_test_copy)
+dt_repari = tree.DecisionTreeClassifier(class_weight='balanced')
+dt_repari.fit(X_train_copy, y_train)
+y_train_pred = dt_repari.predict(X_train_copy)
+y_test_pred = dt_repari.predict(X_test_copy)
 
 print("*" * 100)
-# 训练样本中被SVM模型错误分类的样本
+# 训练样本中被decision tree模型错误分类的样本
 wrong_classified_train_indices = np.where(y_train != y_train_pred)[0]
-print("加噪标签修复后，训练样本中被SVM模型错误分类的样本占总训练样本的比例：", len(wrong_classified_train_indices)/len(y_train))
+print("加噪标签修复后，训练样本中被decision tree模型错误分类的样本占总训练样本的比例：", len(wrong_classified_train_indices)/len(y_train))
 
-# 测试样本中被SVM模型错误分类的样本
+# 测试样本中被decision tree模型错误分类的样本
 wrong_classified_test_indices = np.where(y_test != y_test_pred)[0]
-print("加噪标签修复后，测试样本中被SVM模型错误分类的样本占总测试样本的比例：", len(wrong_classified_test_indices)/len(y_test))
+print("加噪标签修复后，测试样本中被decision tree模型错误分类的样本占总测试样本的比例：", len(wrong_classified_test_indices)/len(y_test))
 
-# 整体数据集D中被SVM模型错误分类的样本
-print("加噪标签修复后，完整数据集D中被SVM模型错误分类的样本占总完整数据的比例：",
+# 整体数据集D中被decision tree模型错误分类的样本
+print("加噪标签修复后，完整数据集D中被decision tree模型错误分类的样本占总完整数据的比例：",
       (len(wrong_classified_train_indices) + len(wrong_classified_test_indices))/(len(y_train) + len(y_test)))
 
 # # section 方案二：对X_copy中需要修复的元组进行特征修复（统计方法修复）
-# #  需要修复的元组通过异常值检测器检测到的元组和SVM分类错误的元组共同确定（取并集）(修复效果由于监督/无监督基准)
+# #  需要修复的元组通过异常值检测器检测到的元组和decision tree分类错误的元组共同确定（取并集）(修复效果由于监督/无监督基准)
 #
 # # subsection 确定有影响力特征中的离群值并采用均值修复
 # for i in range(X_copy.shape[1]):
@@ -439,24 +439,24 @@ print("加噪标签修复后，完整数据集D中被SVM模型错误分类的样
 # X_train_copy = X_copy[train_indices]
 # X_test_copy = X_copy[test_indices]
 #
-# # subsection 重新在修复后的数据上训练SVM模型
+# # subsection 重新在修复后的数据上训练decision tree模型
 #
-# svm_repair = svm.SVC(kernel='linear', C=1.0, probability=True, class_weight='balanced')
-# svm_repair.fit(X_train_copy, y_train)
-# y_train_pred = svm_repair.predict(X_train_copy)
-# y_test_pred = svm_repair.predict(X_test_copy)
+# dt_repari = tree.DecisionTreeClassifier(class_weight='balanced')
+# dt_repari.fit(X_train_copy, y_train)
+# y_train_pred = dt_repari.predict(X_train_copy)
+# y_test_pred = dt_repari.predict(X_test_copy)
 #
 # print("*" * 100)
-# # 训练样本中被SVM模型错误分类的样本
+# # 训练样本中被decision tree模型错误分类的样本
 # wrong_classified_train_indices = np.where(y_train != y_train_pred)[0]
-# print("加噪标签修复后，训练样本中被SVM模型错误分类的样本占总训练样本的比例：", len(wrong_classified_train_indices)/len(y_train))
+# print("加噪标签修复后，训练样本中被decision tree模型错误分类的样本占总训练样本的比例：", len(wrong_classified_train_indices)/len(y_train))
 #
-# # 测试样本中被SVM模型错误分类的样本
+# # 测试样本中被decision tree模型错误分类的样本
 # wrong_classified_test_indices = np.where(y_test != y_test_pred)[0]
-# print("加噪标签修复后，测试样本中被SVM模型错误分类的样本占总测试样本的比例：", len(wrong_classified_test_indices)/len(y_test))
+# print("加噪标签修复后，测试样本中被decision tree模型错误分类的样本占总测试样本的比例：", len(wrong_classified_test_indices)/len(y_test))
 #
-# # 整体数据集D中被SVM模型错误分类的样本
-# print("加噪标签修复后，完整数据集D中被SVM模型错误分类的样本占总完整数据的比例：",
+# # 整体数据集D中被decision tree模型错误分类的样本
+# print("加噪标签修复后，完整数据集D中被decision tree模型错误分类的样本占总完整数据的比例：",
 #       (len(wrong_classified_train_indices) + len(wrong_classified_test_indices))/(len(y_train) + len(y_test)))
 
 # # section 方案三：对X_copy中需要修复的元组借助knn进行修复，choice1 将异常元组中的元素直接设置为nan(修复误差太大，修复后准确性下降)
@@ -479,28 +479,28 @@ print("加噪标签修复后，完整数据集D中被SVM模型错误分类的样
 # X_train_copy = X_copy[train_indices]
 # X_test_copy = X_copy[test_indices]
 #
-# svm_repair = svm.SVC(kernel='linear', C=1.0, probability=True, class_weight='balanced')
-# svm_repair.fit(X_train_copy, y_train)
-# y_train_pred = svm_repair.predict(X_train_copy)
-# y_test_pred = svm_repair.predict(X_test_copy)
+# dt_repari = tree.DecisionTreeClassifier(class_weight='balanced')
+# dt_repari.fit(X_train_copy, y_train)
+# y_train_pred = dt_repari.predict(X_train_copy)
+# y_test_pred = dt_repari.predict(X_test_copy)
 #
 # print("*" * 100)
-# # 训练样本中被SVM模型错误分类的样本
+# # 训练样本中被decision tree模型错误分类的样本
 # wrong_classified_train_indices = np.where(y_train != y_train_pred)[0]
-# print("借助knn修复需要修复的样本后，训练样本中被SVM模型错误分类的样本占总训练样本的比例：",
+# print("借助knn修复需要修复的样本后，训练样本中被decision tree模型错误分类的样本占总训练样本的比例：",
 #       len(wrong_classified_train_indices)/len(y_train))
 #
-# # 测试样本中被SVM模型错误分类的样本
+# # 测试样本中被decision tree模型错误分类的样本
 # wrong_classified_test_indices = np.where(y_test != y_test_pred)[0]
-# print("借助knn修复需要修复的样本后，测试样本中被SVM模型错误分类的样本占总测试样本的比例：",
+# print("借助knn修复需要修复的样本后，测试样本中被decision tree模型错误分类的样本占总测试样本的比例：",
 #       len(wrong_classified_test_indices)/len(y_test))
 #
-# # 整体数据集D中被SVM模型错误分类的样本
-# print("借助knn修复需要修复的样本后，完整数据集D中被SVM模型错误分类的样本占总完整数据的比例：",
+# # 整体数据集D中被decision tree模型错误分类的样本
+# print("借助knn修复需要修复的样本后，完整数据集D中被decision tree模型错误分类的样本占总完整数据的比例：",
 #       (len(wrong_classified_train_indices) + len(wrong_classified_test_indices))
 #       /(len(y_train) + len(y_test)))
 
-# # section 方案四：将X_copy中训练集和测试集需要修复的元组直接删除，在去除后的训练集上训练svm模型
+# # section 方案四：将X_copy中训练集和测试集需要修复的元组直接删除，在去除后的训练集上训练decision tree模型
 #
 # set_X_copy_repair = set(X_copy_repair_indices)
 #
@@ -520,26 +520,26 @@ print("加噪标签修复后，完整数据集D中被SVM模型错误分类的样
 # X_test_copy_repair = X_copy[test_indices]
 # y_test_copy_repair = y[test_indices]
 #
-# # subsection 重新在修复后的数据上训练SVM模型
+# # subsection 重新在修复后的数据上训练decision tree模型
 #
-# svm_repair = svm.SVC(kernel='linear', C=1.0, probability=True, class_weight='balanced')
-# svm_repair.fit(X_train_copy_repair, y_train_copy_repair)
-# y_train_pred = svm_repair.predict(X_train_copy_repair)
-# y_test_pred = svm_repair.predict(X_test_copy_repair)
+# dt_repari = tree.DecisionTreeClassifier(class_weight='balanced')
+# dt_repari.fit(X_train_copy_repair, y_train_copy_repair)
+# y_train_pred = dt_repari.predict(X_train_copy_repair)
+# y_test_pred = dt_repari.predict(X_test_copy_repair)
 #
 # print("*" * 100)
-# # 训练样本中被SVM模型错误分类的样本
+# # 训练样本中被decision tree模型错误分类的样本
 # wrong_classified_train_indices = np.where(y_train_copy_repair != y_train_pred)[0]
-# print("删除需要修复的样本后，训练样本中被SVM模型错误分类的样本占总训练样本的比例：",
+# print("删除需要修复的样本后，训练样本中被decision tree模型错误分类的样本占总训练样本的比例：",
 #       len(wrong_classified_train_indices)/len(y_train_copy_repair))
 #
-# # 测试样本中被SVM模型错误分类的样本
+# # 测试样本中被decision tree模型错误分类的样本
 # wrong_classified_test_indices = np.where(y_test_copy_repair != y_test_pred)[0]
-# print("删除需要修复的样本后，测试样本中被SVM模型错误分类的样本占总测试样本的比例：",
+# print("删除需要修复的样本后，测试样本中被decision tree模型错误分类的样本占总测试样本的比例：",
 #       len(wrong_classified_test_indices)/len(y_test_copy_repair))
 #
-# # 整体数据集D中被SVM模型错误分类的样本
-# print("删除需要修复的样本后，完整数据集D中被SVM模型错误分类的样本占总完整数据的比例：",
+# # 整体数据集D中被decision tree模型错误分类的样本
+# print("删除需要修复的样本后，完整数据集D中被decision tree模型错误分类的样本占总完整数据的比例：",
 #       (len(wrong_classified_train_indices) + len(wrong_classified_test_indices))
 #       /(len(y_train_copy_repair) + len(y_test_copy_repair)))
 
@@ -571,24 +571,24 @@ print("加噪标签修复后，完整数据集D中被SVM模型错误分类的样
 # y_train = y[train_indices]
 # y_test = y[test_indices]
 #
-# # subsection 重新在修复后的数据上训练SVM模型
+# # subsection 重新在修复后的数据上训练decision tree模型
 #
-# svm_repair = svm.SVC(kernel='linear', C=1.0, probability=True, class_weight='balanced')
-# svm_repair.fit(X_train_copy, y_train)
-# y_train_pred = svm_repair.predict(X_train_copy)
-# y_test_pred = svm_repair.predict(X_test_copy)
+# dt_repari = tree.DecisionTreeClassifier(class_weight='balanced')
+# dt_repari.fit(X_train_copy, y_train)
+# y_train_pred = dt_repari.predict(X_train_copy)
+# y_test_pred = dt_repari.predict(X_test_copy)
 #
 # print("*" * 100)
-# # 训练样本中被SVM模型错误分类的样本
+# # 训练样本中被decision tree模型错误分类的样本
 # wrong_classified_train_indices = np.where(y_train != y_train_pred)[0]
-# print("加噪标签修复后，训练样本中被SVM模型错误分类的样本占总训练样本的比例：", len(wrong_classified_train_indices)/len(y_train))
+# print("加噪标签修复后，训练样本中被decision tree模型错误分类的样本占总训练样本的比例：", len(wrong_classified_train_indices)/len(y_train))
 #
-# # 测试样本中被SVM模型错误分类的样本
+# # 测试样本中被decision tree模型错误分类的样本
 # wrong_classified_test_indices = np.where(y_test != y_test_pred)[0]
-# print("加噪标签修复后，测试样本中被SVM模型错误分类的样本占总测试样本的比例：", len(wrong_classified_test_indices)/len(y_test))
+# print("加噪标签修复后，测试样本中被decision tree模型错误分类的样本占总测试样本的比例：", len(wrong_classified_test_indices)/len(y_test))
 #
-# # 整体数据集D中被SVM模型错误分类的样本
-# print("加噪标签修复后，完整数据集D中被SVM模型错误分类的样本占总完整数据的比例：",
+# # 整体数据集D中被decision tree模型错误分类的样本
+# print("加噪标签修复后，完整数据集D中被decision tree模型错误分类的样本占总完整数据的比例：",
 #       (len(wrong_classified_train_indices) + len(wrong_classified_test_indices))/(len(y_train) + len(y_test)))
 
 # # section 方案六：训练机器学习模型(随机森林模型)，修复特征值（修复时间很久，慎用）
@@ -619,22 +619,22 @@ print("加噪标签修复后，完整数据集D中被SVM模型错误分类的样
 # y_train = y[train_indices]
 # y_test = y[test_indices]
 #
-# # subsection 重新在修复后的数据上训练SVM模型
+# # subsection 重新在修复后的数据上训练decision tree模型
 #
-# svm_repair = svm.SVC(kernel='linear', C=1.0, probability=True, class_weight='balanced')
-# svm_repair.fit(X_train_copy, y_train)
-# y_train_pred = svm_repair.predict(X_train_copy)
-# y_test_pred = svm_repair.predict(X_test_copy)
+# dt_repari = tree.DecisionTreeClassifier(class_weight='balanced')
+# dt_repari.fit(X_train_copy, y_train)
+# y_train_pred = dt_repari.predict(X_train_copy)
+# y_test_pred = dt_repari.predict(X_test_copy)
 #
 # print("*" * 100)
-# # 训练样本中被SVM模型错误分类的样本
+# # 训练样本中被decision tree模型错误分类的样本
 # wrong_classified_train_indices = np.where(y_train != y_train_pred)[0]
-# print("加噪标签修复后，训练样本中被SVM模型错误分类的样本占总训练样本的比例：", len(wrong_classified_train_indices)/len(y_train))
+# print("加噪标签修复后，训练样本中被decision tree模型错误分类的样本占总训练样本的比例：", len(wrong_classified_train_indices)/len(y_train))
 #
-# # 测试样本中被SVM模型错误分类的样本
+# # 测试样本中被decision tree模型错误分类的样本
 # wrong_classified_test_indices = np.where(y_test != y_test_pred)[0]
-# print("加噪标签修复后，测试样本中被SVM模型错误分类的样本占总测试样本的比例：", len(wrong_classified_test_indices)/len(y_test))
+# print("加噪标签修复后，测试样本中被decision tree模型错误分类的样本占总测试样本的比例：", len(wrong_classified_test_indices)/len(y_test))
 #
-# # 整体数据集D中被SVM模型错误分类的样本
-# print("加噪标签修复后，完整数据集D中被SVM模型错误分类的样本占总完整数据的比例：",
+# # 整体数据集D中被decision tree模型错误分类的样本
+# print("加噪标签修复后，完整数据集D中被decision tree模型错误分类的样本占总完整数据的比例：",
 #       (len(wrong_classified_train_indices) + len(wrong_classified_test_indices))/(len(y_train) + len(y_test)))

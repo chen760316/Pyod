@@ -4,7 +4,6 @@
 import re
 
 import pandas as pd
-from sklearn.feature_selection import SelectFromModel
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
@@ -38,8 +37,10 @@ np.set_printoptions(threshold=np.inf)
 file_path = "../datasets/multi_class/drybean.xlsx"
 data = pd.read_excel(file_path)
 enc = LabelEncoder()
+label_name = data.columns[-1]
+
 # 原始数据集D对应的Dataframe
-data['Class'] = enc.fit_transform(data['Class'])
+data[label_name] = enc.fit_transform(data[label_name])
 X = data.values[:, :-1]
 y = data.values[:, -1]
 
@@ -227,7 +228,7 @@ print("加噪测试集中的异常值比例：", len(test_outliers_index_noise)/
 # subsection 原始数据集上训练的SVM模型在训练集和测试集中分错的样本比例
 
 print("*" * 100)
-svm_model = svm.SVC(kernel='linear', C=1.0, probability=True)
+svm_model = svm.SVC(kernel='linear', C=1.0, probability=True, class_weight='balanced')
 svm_model.fit(X_train, y_train)
 train_label_pred = svm_model.predict(X_train)
 test_label_pred = svm_model.predict(X_test)
@@ -247,7 +248,7 @@ print("完整数据集D中被SVM模型错误分类的样本占总完整数据的
 # subsection 加噪数据集上训练的SVM模型在训练集和测试集中分错的样本比例
 
 print("*" * 100)
-svm_model_noise = svm.SVC(kernel='linear', C=1.0, probability=True)
+svm_model_noise = svm.SVC(kernel='linear', C=1.0, probability=True, class_weight='balanced')
 svm_model_noise.fit(X_train_copy, y_train)
 train_label_pred_noise = svm_model_noise.predict(X_train_copy)
 test_label_pred_noise = svm_model_noise.predict(X_test_copy)
@@ -324,7 +325,7 @@ exp = explainer.explain_instance(X_train[i], predict_fn, num_features=len(featur
 top_features = exp.as_list()
 top_feature_names = [re.search(r'([a-zA-Z_]\w*)', feature[0]).group(0).strip() for feature in top_features]
 top_k_indices = [feature_names.index(name) for name in top_feature_names]
-print("LIME检验的最有影响力的属性的索引：{}".format(top_k_indices))
+# print("LIME检验的最有影响力的属性的索引：{}".format(top_k_indices))
 
 # section 方案一：对X_copy中需要修复的元组进行标签修复（knn方法）
 #  需要修复的元组通过异常值检测器检测到的元组和SVM分类错误的元组共同确定（取并集）
@@ -344,7 +345,7 @@ y_test = y[test_indices]
 
 # subsection 重新在修复后的数据上训练SVM模型
 
-svm_repair = svm.SVC(kernel='linear', C=1.0, probability=True)
+svm_repair = svm.SVC(kernel='linear', C=1.0, probability=True, class_weight='balanced')
 svm_repair.fit(X_train_copy, y_train)
 y_train_pred = svm_repair.predict(X_train_copy)
 y_test_pred = svm_repair.predict(X_test_copy)
@@ -379,7 +380,7 @@ print("加噪标签修复后，完整数据集D中被SVM模型错误分类的样
 #
 # # subsection 重新在修复后的数据上训练SVM模型
 #
-# svm_repair = svm.SVC(kernel='linear', C=1.0, probability=True)
+# svm_repair = svm.SVC(kernel='linear', C=1.0, probability=True, class_weight='balanced')
 # svm_repair.fit(X_train_copy, y_train)
 # y_train_pred = svm_repair.predict(X_train_copy)
 # y_test_pred = svm_repair.predict(X_test_copy)
@@ -418,7 +419,7 @@ print("加噪标签修复后，完整数据集D中被SVM模型错误分类的样
 # X_train_copy = X_copy[train_indices]
 # X_test_copy = X_copy[test_indices]
 #
-# svm_repair = svm.SVC(kernel='linear', C=1.0, probability=True)
+# svm_repair = svm.SVC(kernel='linear', C=1.0, probability=True, class_weight='balanced')
 # svm_repair.fit(X_train_copy, y_train)
 # y_train_pred = svm_repair.predict(X_train_copy)
 # y_test_pred = svm_repair.predict(X_test_copy)
@@ -461,7 +462,7 @@ print("加噪标签修复后，完整数据集D中被SVM模型错误分类的样
 #
 # # subsection 重新在修复后的数据上训练SVM模型
 #
-# svm_repair = svm.SVC(kernel='linear', C=1.0, probability=True)
+# svm_repair = svm.SVC(kernel='linear', C=1.0, probability=True, class_weight='balanced')
 # svm_repair.fit(X_train_copy_repair, y_train_copy_repair)
 # y_train_pred = svm_repair.predict(X_train_copy_repair)
 # y_test_pred = svm_repair.predict(X_test_copy_repair)
@@ -512,7 +513,7 @@ print("加噪标签修复后，完整数据集D中被SVM模型错误分类的样
 #
 # # subsection 重新在修复后的数据上训练SVM模型
 #
-# svm_repair = svm.SVC(kernel='linear', C=1.0, probability=True)
+# svm_repair = svm.SVC(kernel='linear', C=1.0, probability=True, class_weight='balanced')
 # svm_repair.fit(X_train_copy, y_train)
 # y_train_pred = svm_repair.predict(X_train_copy)
 # y_test_pred = svm_repair.predict(X_test_copy)
@@ -559,7 +560,7 @@ print("加噪标签修复后，完整数据集D中被SVM模型错误分类的样
 #
 # # subsection 重新在修复后的数据上训练SVM模型
 #
-# svm_repair = svm.SVC(kernel='linear', C=1.0, probability=True)
+# svm_repair = svm.SVC(kernel='linear', C=1.0, probability=True, class_weight='balanced')
 # svm_repair.fit(X_train_copy, y_train)
 # y_train_pred = svm_repair.predict(X_train_copy)
 # y_test_pred = svm_repair.predict(X_test_copy)
