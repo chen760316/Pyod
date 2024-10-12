@@ -28,6 +28,12 @@ np.set_printoptions(threshold=np.inf)
 file_path = "../datasets/real_outlier/Cardiotocography.csv"
 # file_path = "../datasets/real_outlier/annthyroid.csv"
 # file_path = "../datasets/real_outlier/optdigits.csv"
+# file_path = "../datasets/real_outlier/PageBlocks.csv"
+# file_path = "../datasets/real_outlier/pendigits.csv"
+# file_path = "../datasets/real_outlier/satellite.csv"
+# file_path = "../datasets/real_outlier/shuttle.csv"
+# file_path = "../datasets/real_outlier/yeast.csv"
+
 data = pd.read_csv(file_path)
 
 # 如果数据量超过20000行，就随机采样到20000行
@@ -114,7 +120,7 @@ import re
 i = len(feature_names)
 np.random.seed(1)
 categorical_names = {}
-svm_model = svm.SVC(kernel='linear', C=1.0, probability=True)
+svm_model = svm.SVC(kernel='linear', C=1.0, probability=True, class_weight='balanced')
 svm_model.fit(X_train_copy, y_train)
 
 for feature in categorical_features:
@@ -203,6 +209,7 @@ for column_indice in top_k_indices:
 outlier_tuple_set = set()
 for value in outlier_feature_indices.values():
     outlier_tuple_set.update(value)
+outlier_tuple_set.update(bad_samples)
 X_copy_repair_indices = list(outlier_tuple_set)
 X_copy_repair = X_copy[X_copy_repair_indices]
 y_repair = y[X_copy_repair_indices]
@@ -220,7 +227,7 @@ y_inners = y[rows_to_keep]
 # subsection 原始数据集上训练的SVM模型在训练集和测试集中分错的样本比例
 
 print("*" * 100)
-svm_model = svm.SVC(kernel='linear', C=1.0, probability=True)
+svm_model = svm.SVC(kernel='linear', C=1.0, probability=True, class_weight='balanced')
 svm_model.fit(X_train, y_train)
 train_label_pred = svm_model.predict(X_train)
 
@@ -238,7 +245,7 @@ print("完整数据集D中被SVM模型错误分类的样本占总完整数据的
 # subsection 加噪数据集上训练的SVM模型在训练集和测试集中分错的样本比例
 
 print("*" * 100)
-svm_model_noise = svm.SVC(kernel='linear', C=1.0, probability=True)
+svm_model_noise = svm.SVC(kernel='linear', C=1.0, probability=True, class_weight='balanced')
 svm_model_noise.fit(X_train_copy, y_train)
 train_label_pred_noise = svm_model_noise.predict(X_train_copy)
 
@@ -263,6 +270,6 @@ print("被误分类的样本数量：", len(wrong_classify_indices))
 
 # section 检测ugly outliers的召回率
 # ugly_found_by_detector = list(set(X_copy_repair_indices) & set(wrong_classify_indices))
-ugly_found_by_detector = list(set(bad_samples) & set(wrong_classify_indices))
+ugly_found_by_detector = list(set(X_copy_repair_indices) & set(wrong_classify_indices))
 print("召回的ugly outliers的数量：", len(ugly_found_by_detector))
 print("ugly outliers的召回率为：", len(ugly_found_by_detector)/len(wrong_classify_indices))

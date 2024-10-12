@@ -25,9 +25,16 @@ np.set_printoptions(threshold=np.inf)
 
 # section 标准数据集处理
 
+# choice 选取数据集
 # file_path = "../datasets/real_outlier/Cardiotocography.csv"
 # file_path = "../datasets/real_outlier/annthyroid.csv"
 file_path = "../datasets/real_outlier/optdigits.csv"
+# file_path = "../datasets/real_outlier/PageBlocks.csv"
+# file_path = "../datasets/real_outlier/pendigits.csv"
+# file_path = "../datasets/real_outlier/satellite.csv"
+# file_path = "../datasets/real_outlier/shuttle.csv"
+# file_path = "../datasets/real_outlier/yeast.csv"
+
 data = pd.read_csv(file_path)
 
 # 如果数据量超过20000行，就随机采样到20000行
@@ -113,7 +120,7 @@ import re
 i = len(feature_names)
 np.random.seed(1)
 categorical_names = {}
-svm_model = svm.SVC(kernel='linear', C=1.0, probability=True)
+svm_model = svm.SVC(kernel='linear', C=1.0, probability=True, class_weight='balanced')
 svm_model.fit(X_train_copy, y_train)
 
 for feature in categorical_features:
@@ -267,10 +274,10 @@ print("Rovas在加噪测试集中的分类精确度：" + str(precision_score(y_
 print("Rovas在加噪测试集中的分类召回率：" + str(recall_score(y_test, y_test_pred, average='weighted')))
 print("Rovas在加噪测试集中的分类F1分数：" + str(f1_score(y_test, y_test_pred, average='weighted')))
 
-"""ROC-AUC指标"""
-print("*" * 100)
-roc_auc_test = roc_auc_score(y_test, y_test_pred, multi_class='ovr')  # 一对多方式
-print("Rovas在加噪测试集中的ROC-AUC分数：" + str(roc_auc_test))
+# """ROC-AUC指标"""
+# print("*" * 100)
+# roc_auc_test = roc_auc_score(y_test, y_test_pred, multi_class='ovr')  # 一对多方式
+# print("Rovas在加噪测试集中的ROC-AUC分数：" + str(roc_auc_test))
 
 # """PR AUC指标"""
 # print("*" * 100)

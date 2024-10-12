@@ -40,6 +40,12 @@ np.set_printoptions(threshold=np.inf)
 file_path = "../datasets/real_outlier/Cardiotocography.csv"
 # file_path = "../datasets/real_outlier/annthyroid.csv"
 # file_path = "../datasets/real_outlier/optdigits.csv"
+# file_path = "../datasets/real_outlier/PageBlocks.csv"
+# file_path = "../datasets/real_outlier/pendigits.csv"
+# file_path = "../datasets/real_outlier/satellite.csv"
+# file_path = "../datasets/real_outlier/shuttle.csv"
+# file_path = "../datasets/real_outlier/yeast.csv"
+
 data = pd.read_csv(file_path)
 
 # 如果数据量超过20000行，就随机采样到20000行
@@ -251,7 +257,7 @@ for i in range(len(X_copy)):
 # subsection 原始数据集上训练的SVM模型在训练集和测试集中分错的样本比例
 
 print("*" * 100)
-svm_model = svm.SVC(kernel='linear', C=1.0, probability=True)
+svm_model = svm.SVC(kernel='linear', C=1.0, probability=True, class_weight='balanced')
 svm_model.fit(X_train, y_train)
 train_label_pred = svm_model.predict(X_train)
 
@@ -269,7 +275,7 @@ print("完整数据集D中被SVM模型错误分类的样本占总完整数据的
 # subsection 加噪数据集上训练的SVM模型在训练集和测试集中分错的样本比例
 
 print("*" * 100)
-svm_model_noise = svm.SVC(kernel='linear', C=1.0, probability=True)
+svm_model_noise = svm.SVC(kernel='linear', C=1.0, probability=True, class_weight='balanced')
 svm_model_noise.fit(X_train_copy, y_train)
 train_label_pred_noise = svm_model_noise.predict(X_train_copy)
 

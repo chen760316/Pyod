@@ -37,9 +37,16 @@ np.set_printoptions(threshold=np.inf)
 
 # section 标准数据集处理
 
+# choice 选取数据集
 # file_path = "../datasets/real_outlier/Cardiotocography.csv"
 # file_path = "../datasets/real_outlier/annthyroid.csv"
 file_path = "../datasets/real_outlier/optdigits.csv"
+# file_path = "../datasets/real_outlier/PageBlocks.csv"
+# file_path = "../datasets/real_outlier/pendigits.csv"
+# file_path = "../datasets/real_outlier/satellite.csv"
+# file_path = "../datasets/real_outlier/shuttle.csv"
+# file_path = "../datasets/real_outlier/yeast.csv"
+
 data = pd.read_csv(file_path)
 
 # 如果数据量超过20000行，就随机采样到20000行
@@ -251,7 +258,7 @@ for i in range(len(X_copy)):
 # subsection 原始数据集上训练的SVM模型在训练集和测试集中分错的样本比例
 
 print("*" * 100)
-svm_model = svm.SVC(kernel='linear', C=1.0, probability=True)
+svm_model = svm.SVC(kernel='linear', C=1.0, probability=True, class_weight='balanced')
 svm_model.fit(X_train, y_train)
 train_label_pred = svm_model.predict(X_train)
 
@@ -269,7 +276,7 @@ print("完整数据集D中被SVM模型错误分类的样本占总完整数据的
 # subsection 加噪数据集上训练的SVM模型在训练集和测试集中分错的样本比例
 
 print("*" * 100)
-svm_model_noise = svm.SVC(kernel='linear', C=1.0, probability=True)
+svm_model_noise = svm.SVC(kernel='linear', C=1.0, probability=True, class_weight='balanced')
 svm_model_noise.fit(X_train_copy, y_train)
 train_label_pred_noise = svm_model_noise.predict(X_train_copy)
 
@@ -342,7 +349,7 @@ def calculate_made(data):
 # 初始化MinMaxScaler
 scaler = MinMaxScaler()
 data_minmax = pd.read_csv(file_path)
-data_minmax[data.columns] = scaler.fit_transform(data[data.columns])
+data_minmax[data_minmax.columns] = scaler.fit_transform(data_minmax[data_minmax.columns])
 # 设置分组的间隔
 interval = 0.01
 # 对每列数据进行分组
@@ -375,7 +382,7 @@ imbalanced_tuple_indices = set()
 # 初始化MinMaxScaler
 scaler_new = MinMaxScaler()
 data_imbalance = pd.read_csv(file_path)
-data_imbalance[data.columns] = scaler_new.fit_transform(data[data.columns])
+data_imbalance[data_imbalance.columns] = scaler_new.fit_transform(data_imbalance[data_imbalance.columns])
 
 for feature in filtered_important_feature_indices:
     select_feature = feature_names[feature]
@@ -471,7 +478,25 @@ print("Rovas在加噪测试集中的分类精确度：" + str(precision_score(y_
 print("Rovas在加噪测试集中的分类召回率：" + str(recall_score(y_test, y_test_pred, average='weighted')))
 print("Rovas在加噪测试集中的分类F1分数：" + str(f1_score(y_test, y_test_pred, average='weighted')))
 
-"""ROC-AUC指标"""
-print("*" * 100)
-roc_auc_test = roc_auc_score(y_test, y_test_pred, multi_class='ovr')  # 一对多方式
-print("Rovas在加噪测试集中的ROC-AUC分数：" + str(roc_auc_test))
+# """ROC-AUC指标"""
+# print("*" * 100)
+# roc_auc_test = roc_auc_score(y_test, y_test_pred, multi_class='ovr')  # 一对多方式
+# print("Rovas在加噪测试集中的ROC-AUC分数：" + str(roc_auc_test))
+
+# """PR AUC指标"""
+# print("*" * 100)
+# # 计算预测概率
+# y_scores = 1 / (1 + np.exp(-test_scores))
+# # 计算 Precision 和 Recall
+# precision, recall, _ = precision_recall_curve(y_test, y_scores)
+# # 计算 PR AUC
+# pr_auc = auc(recall, precision)
+# print("半监督异常检测器在原始测试集中的PR AUC 分数:", pr_auc)
+#
+# """AP指标"""
+# print("*" * 100)
+# # 计算预测概率
+# y_scores = 1 / (1 + np.exp(-test_scores))
+# # 计算 Average Precision
+# ap_score = average_precision_score(y_test, y_scores)
+# print("无监督异常检测器在原始测试集中的AP分数:", ap_score)
